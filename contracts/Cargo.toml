@@ -1,0 +1,21 @@
+[package]
+name = "covenantos-contracts"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+odra = { version = "2.3", default-features = false, features = ["casper"] }
+
+[dev-dependencies]
+odra-test = { version = "2.3", features = ["casper"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "livenet_deploy"
+path = "bin/livenet_deploy.rs"
+
+[features]
+default = []
+livenet = ["odra/livenet"]

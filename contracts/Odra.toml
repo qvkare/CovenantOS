@@ -1,0 +1,8 @@
+[[contracts]]
+fqn = "covenantos::PolicyGuard"
+
+[[contracts]]
+fqn = "covenantos::EvidenceReceipt"
+
+[[contracts]]
+fqn = "covenantos::FacilityVault"

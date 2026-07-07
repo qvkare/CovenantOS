@@ -1,0 +1,9 @@
+{
+  "name": "@covenantos/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Web UI starts in frontend phase — see plans/frontend-plan.md'",
+    "build": "echo 'Web build placeholder'"
+  }
+}

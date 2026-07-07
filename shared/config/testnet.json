@@ -1,0 +1,19 @@
+{
+  "networkName": "casper-test",
+  "nodeUrl": "https://node.testnet.casper.network/rpc",
+  "csprCloudUrl": "https://api.testnet.cspr.cloud",
+  "contracts": {
+    "policyGuard": {
+      "packageHash": "",
+      "contractHash": ""
+    },
+    "evidenceReceipt": {
+      "packageHash": "",
+      "contractHash": ""
+    },
+    "facilityVault": {
+      "packageHash": "",
+      "contractHash": ""
+    }
+  }
+}

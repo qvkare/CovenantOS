@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: covenantos
+      POSTGRES_PASSWORD: covenantos
+      POSTGRES_DB: covenantos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U covenantos -d covenantos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgres://covenantos:covenantos@postgres:5432/covenantos
+      MOCK_PROVIDER_URL: http://mock-provider:3002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-provider:
+        condition: service_started
+
+  mock-provider:
+    build:
+      context: .
+      dockerfile: mock-provider/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      X402_PAYMENT_ADDRESS: 01mockprovider000000000000000000000000000000
+      X402_PAYMENT_AMOUNT_MOTES: "1000000"
+
+volumes:
+  postgres_data:

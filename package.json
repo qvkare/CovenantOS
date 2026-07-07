@@ -1,0 +1,20 @@
+{
+  "name": "covenantos",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "backend",
+    "mock-provider",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w backend",
+    "dev:mock": "npm run dev -w mock-provider",
+    "build": "npm run build -ws --if-present",
+    "test": "npm run test -ws --if-present",
+    "lint": "npm run lint -ws --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
