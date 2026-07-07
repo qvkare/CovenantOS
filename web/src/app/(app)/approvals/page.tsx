@@ -3,6 +3,7 @@
 import type { ProposedAction } from "@covenantos/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { ApprovalProgress } from "@/components/covenant/approval-progress";
@@ -30,6 +31,7 @@ import {
 export default function ApprovalsPage() {
   const { publicKey, clickRef } = useClickWallet();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data, isLoading } = useQuery({
     queryKey: ["actions", "pending"],
@@ -49,14 +51,20 @@ export default function ApprovalsPage() {
         txHash: approvalRef,
       });
     },
-    onSuccess: (res) => {
+    onSuccess: (res, action) => {
       void queryClient.invalidateQueries({ queryKey: ["actions"] });
       void queryClient.invalidateQueries({ queryKey: ["facility"] });
-      toast.success(
-        res.action.status === "executed"
-          ? "Action executed on-chain"
-          : "Approval recorded",
-      );
+      void queryClient.invalidateQueries({ queryKey: ["facilities"] });
+      if (res.action.status === "executed") {
+        toast.success("Hold executed on-chain — escrow funds are now held", {
+          action: {
+            label: "View facility",
+            onClick: () => router.push(`/facilities/${action.facilityId}`),
+          },
+        });
+      } else {
+        toast.success("Approval recorded — additional signatures required");
+      }
     },
     onError: (err: Error) => toast.error(err.message),
   });

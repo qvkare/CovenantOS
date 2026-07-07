@@ -4,7 +4,6 @@ import type {
   AccountType,
   ICSPRClickSDK,
 } from "@make-software/csprclick-core-types";
-import type { ClickUIOptions } from "@make-software/csprclick-core-types/clickui";
 import {
   createContext,
   useCallback,
@@ -13,6 +12,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
+import {
+  applyClickGlobals,
+  CSPRCLICK_SCRIPT_URL,
+} from "./click-config.js";
 
 interface ClickContextState {
   ready: boolean;
@@ -25,9 +29,6 @@ interface ClickContextState {
 }
 
 const ClickContext = createContext<ClickContextState | undefined>(undefined);
-
-const APP_ID =
-  process.env.NEXT_PUBLIC_CSPRCLICK_APP_ID ?? "csprclick-template";
 
 export function ClickProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -44,22 +45,7 @@ export function ClickProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Both globals must exist before the CDN script executes (see CSPR.click docs).
-    window.clickUIOptions = {
-      uiContainer: "csprclick-ui",
-      rootAppElement: "body",
-      showTopBar: false,
-      show1ClickModal: true,
-      defaultTheme: "dark",
-      accountMenuItems: ["AccountCardMenuItem", "CopyHashMenuItem"],
-    } satisfies ClickUIOptions;
-
-    window.clickSDKOptions = {
-      appName: "CovenantOS",
-      appId: APP_ID,
-      providers: ["casper-wallet", "ledger", "metamask-snap"],
-      contentMode: "iframe",
-    };
+    applyClickGlobals();
 
     const onLoaded = () => {
       if (!window.csprclick) return;
@@ -80,12 +66,11 @@ export function ClickProvider({ children }: { children: ReactNode }) {
     window.addEventListener("csprclick:loaded", onLoaded);
     if (window.csprclick) onLoaded();
 
-    if (!document.querySelector("script#csprclick-client")) {
+    if (!document.querySelector(`script[src="${CSPRCLICK_SCRIPT_URL}"]`)) {
       const script = document.createElement("script");
-      script.src =
-        "https://cdn.cspr.click/ui/v2.1.0/csprclick-client-2.1.0.js";
+      script.src = CSPRCLICK_SCRIPT_URL;
       script.async = true;
-      script.id = "csprclick-client";
+      script.id = "csprclick-client-fallback";
       document.head.appendChild(script);
     }
 

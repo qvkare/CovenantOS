@@ -60,10 +60,21 @@ export async function getFacilityCovenants(
   return api(`/facilities/${id}/covenants`);
 }
 
+export interface CovenantCheckResponse {
+  status: string;
+  evaluation?: { status: string; breaches: Array<{ type: string; message: string }> };
+  action?: ProposedAction;
+  event?: ChainEvent;
+}
+
 export async function triggerFacilityCheck(
   id: string,
-): Promise<{ status: string; event?: ChainEvent }> {
+): Promise<CovenantCheckResponse> {
   return api(`/facilities/${id}/check`, { method: "POST" });
+}
+
+export async function resetDemo(): Promise<{ ok: boolean; message: string }> {
+  return api("/demo/reset", { method: "POST" });
 }
 
 export async function getFacilityAudit(id: string): Promise<AuditResponse> {

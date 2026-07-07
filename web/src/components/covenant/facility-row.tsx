@@ -1,3 +1,6 @@
+"use client";
+
+import { DEMO_FACILITY_IDS } from "@covenantos/shared";
 import Link from "next/link";
 
 import { CovenantStatusBadge } from "@/components/covenant/covenant-status-badge";
@@ -27,6 +30,9 @@ export function FacilityRow({ facility }: { facility: FacilitySummary }) {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-lg">{facility.name}</CardTitle>
+              {facility.id === DEMO_FACILITY_IDS.breach ? (
+                <Badge className="bg-emerald-500/20 text-emerald-200">Live demo</Badge>
+              ) : null}
               <CovenantStatusBadge status={statusForBadge} />
               <Badge variant="outline">{facility.status}</Badge>
             </div>

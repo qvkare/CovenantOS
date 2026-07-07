@@ -55,7 +55,7 @@ describe("evaluateCovenants", () => {
 });
 
 describe("CovenantAgent", () => {
-  it("records evidence and proposes hold on breach after two evidence items", async () => {
+  it("proposes hold when breach evidence reaches threshold", async () => {
     resetDemoStore();
     const agent = new CovenantAgent({
       recordEvidence: async () => "mock-receipt-tx",
@@ -78,7 +78,7 @@ describe("CovenantAgent", () => {
     });
     expect(first?.status).toBe("breach");
     if (first?.status === "breach") {
-      expect(first.action).toBeUndefined();
+      expect(first.action?.type).toBe("hold");
     }
 
     const result = await agent.processEvidence({
@@ -89,16 +89,15 @@ describe("CovenantAgent", () => {
 
     expect(result?.status).toBe("breach");
     if (result?.status === "breach") {
-      expect(result.action?.type).toBe("hold");
-      expect(result.action?.evidenceIds.length).toBeGreaterThan(0);
+      expect(result.action).toBeUndefined();
     }
   });
 
-  it("returns no_evidence when facility has none", () => {
+  it("evaluates seeded evidence on runCheck", () => {
     resetDemoStore();
     const agent = new CovenantAgent();
-    const result = agent.runCheck(DEMO_FACILITY_IDS.breach);
-    expect(result?.status).toBe("no_evidence");
+    const result = agent.runCheck(DEMO_FACILITY_IDS.healthy);
+    expect(result?.status).toBe("ok");
   });
 });
 

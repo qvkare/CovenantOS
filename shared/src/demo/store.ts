@@ -41,7 +41,7 @@ const INITIAL_FACILITIES: FacilitySummary[] = [
   },
   {
     id: DEMO_FACILITY_IDS.breach,
-    name: "Atlas Receivables Pool",
+    name: "Atlas Receivables Pool (Live demo)",
     issuer: "01issuer0000000000000000000000000000000000000000000000000000000002",
     status: "active",
     escrowBalanceCache: "8200000000000",
@@ -162,7 +162,20 @@ const INITIAL_EVIDENCE: Record<string, Evidence[]> = {
       createdAt: "2026-07-07T11:40:00.000Z",
     },
   ],
-  [DEMO_FACILITY_IDS.breach]: [],
+  [DEMO_FACILITY_IDS.breach]: [
+    {
+      id: "ev-101-seed",
+      facilityId: DEMO_FACILITY_IDS.breach,
+      sourceId: "mock-bank-statement",
+      payloadHash:
+        "b1c2d3e4f5a6789012345678901234567890abcdef1234567890abcdef123456",
+      x402PaymentRef: "x402-pay-seed-101",
+      onchainReceiptTx:
+        "deploy-breach-seed-evidence-101abcdef1234567890abcdef1234567890ab",
+      rawPayload: { dscr: 1.25, cashBalance: 120000, scenario: "healthy" },
+      createdAt: "2026-07-07T11:00:00.000Z",
+    },
+  ],
 };
 
 const INITIAL_ESCROW: Record<string, EscrowState> = {

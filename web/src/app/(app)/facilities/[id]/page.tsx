@@ -1,8 +1,9 @@
 "use client";
 
+import { DEMO_FACILITY_IDS } from "@covenantos/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -22,15 +23,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useLiveEvents } from "@/hooks/use-live-events";
-import { getFacility, triggerFacilityCheck } from "@/lib/api-client";
+import { getFacility, listActions, triggerFacilityCheck } from "@/lib/api-client";
 import { formatMotes } from "@/lib/format";
+
+const MIN_EVIDENCE_FOR_HOLD = 2;
+const DEMO_BREACH_ID = DEMO_FACILITY_IDS.breach;
 
 export default function FacilityDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { events, connected } = useLiveEvents();
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const isDemoBreachFacility = id === DEMO_BREACH_ID;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["facility", id],
@@ -38,19 +44,43 @@ export default function FacilityDetailPage() {
     enabled: Boolean(id),
   });
 
+  const { data: pendingActions } = useQuery({
+    queryKey: ["actions", "pending"],
+    queryFn: () => listActions("pending"),
+  });
+
+  const facilityPending =
+    pendingActions?.actions.filter((a) => a.facilityId === id) ?? [];
+
   const checkMutation = useMutation({
     mutationFn: () => triggerFacilityCheck(id),
     onSuccess: (res) => {
       void queryClient.invalidateQueries({ queryKey: ["facility", id] });
       void queryClient.invalidateQueries({ queryKey: ["facilities"] });
       void queryClient.invalidateQueries({ queryKey: ["actions"] });
-      if (res.status === "breach") {
-        toast.success("Breach detected, hold proposed for approval");
+
+      if (res.status === "breach" && res.action) {
+        toast.success("Hold proposed — officer approval required", {
+          action: {
+            label: "Go to Approvals",
+            onClick: () => router.push("/approvals"),
+          },
+        });
+        setBannerDismissed(false);
+      } else if (res.status === "breach") {
+        toast.message("Breach detected — evidence recorded", {
+          description: `Run check again after ${MIN_EVIDENCE_FOR_HOLD} independent evidence items are collected.`,
+        });
         setBannerDismissed(false);
       } else if (res.status === "release_pending") {
-        toast.success("Remediation check passed, release proposed");
+        toast.success("Remediation check passed — release proposed", {
+          action: {
+            label: "Go to Approvals",
+            onClick: () => router.push("/approvals"),
+          },
+        });
       } else {
-        toast.success("Covenant check complete");
+        toast.success("Covenant check complete — all covenants within threshold");
       }
     },
     onError: (err: Error) => toast.error(err.message),
@@ -61,7 +91,9 @@ export default function FacilityDetailPage() {
   );
   const showBanner =
     !bannerDismissed &&
-    (data?.facility.status === "breach" || breachEvents.length > 0);
+    (data?.facility.status === "breach" ||
+      breachEvents.length > 0 ||
+      facilityPending.length > 0);
 
   if (isLoading) {
     return (
@@ -86,6 +118,7 @@ export default function FacilityDetailPage() {
   }
 
   const { facility, covenants, evidence, escrow } = data;
+  const evidenceNeeded = Math.max(0, MIN_EVIDENCE_FOR_HOLD - evidence.length);
 
   return (
     <>
@@ -93,9 +126,48 @@ export default function FacilityDetailPage() {
         {showBanner ? (
           <LiveBanner
             title="Covenant breach detected"
-            message="PolicyGuard has flagged this facility. Review evidence and approve a hold action before funds move."
+            message={
+              facilityPending.length > 0
+                ? "A hold action is waiting for officer approval in the Approvals queue."
+                : evidenceNeeded > 0
+                  ? `DSCR breach confirmed. Collect ${evidenceNeeded} more evidence item(s), then run check again to propose a hold.`
+                  : "PolicyGuard flagged this facility. Run a check to propose an escrow hold."
+            }
+            actionHref={
+              facilityPending.length > 0 ? "/approvals" : undefined
+            }
+            actionLabel={
+              facilityPending.length > 0 ? "Review approvals →" : undefined
+            }
             onDismiss={() => setBannerDismissed(true)}
           />
+        ) : null}
+
+        {isDemoBreachFacility ? (
+          <Card className="border-emerald-400/20 bg-emerald-400/[0.04]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Live demo facility</CardTitle>
+              <CardDescription>
+                One check fetches x402 bank evidence (DSCR 0.82), detects breach,
+                and proposes an escrow hold for CSPR.click approval.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={() => checkMutation.mutate()}
+                disabled={checkMutation.isPending}
+                className="gap-2"
+              >
+                {checkMutation.isPending ? "Running breach demo…" : "Run breach demo"}
+              </Button>
+              <span className="text-xs text-white/50">
+                Evidence {evidence.length}/{MIN_EVIDENCE_FOR_HOLD} ·{" "}
+                {facilityPending.length > 0
+                  ? "hold pending approval"
+                  : "ready for check"}
+              </span>
+            </CardContent>
+          </Card>
         ) : null}
 
         <PageHeader
@@ -107,21 +179,25 @@ export default function FacilityDetailPage() {
               <Button variant="outline" asChild>
                 <Link href={`/facilities/${id}/audit`}>Audit trail</Link>
               </Button>
-              <Button
-                onClick={() => checkMutation.mutate()}
-                disabled={checkMutation.isPending}
-              >
-                {checkMutation.isPending ? "Checking…" : "Check now"}
-              </Button>
+              {facilityPending.length > 0 ? (
+                <Button asChild>
+                  <Link href="/approvals">Approve hold →</Link>
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => checkMutation.mutate()}
+                  disabled={checkMutation.isPending}
+                >
+                  {checkMutation.isPending ? "Checking…" : "Check now"}
+                </Button>
+              )}
             </div>
           }
         />
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {covenants.map((cov) => {
-            const breached =
-              facility.status === "breach" &&
-              (cov.type === "DSCR" || cov.type === "AGING");
+            const primaryBreach = facility.status === "breach" && cov.type === "DSCR";
             const warning = cov.confidence < 0.85;
             return (
               <Card key={cov.id}>
@@ -130,7 +206,7 @@ export default function FacilityDetailPage() {
                     <CardTitle className="text-base">{cov.type}</CardTitle>
                     <CovenantStatusBadge
                       status={
-                        breached ? "BREACH" : warning ? "WARNING" : "OK"
+                        primaryBreach ? "BREACH" : warning ? "WARNING" : "OK"
                       }
                     />
                   </div>
@@ -153,7 +229,12 @@ export default function FacilityDetailPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
           <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Evidence timeline</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Evidence timeline</h2>
+              <Badge variant="outline" className="font-mono text-[10px]">
+                {evidence.length}/{MIN_EVIDENCE_FOR_HOLD} for hold proposal
+              </Badge>
+            </div>
             {evidence.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-sm text-white/50">
@@ -185,7 +266,9 @@ export default function FacilityDetailPage() {
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <div className="text-white/40">Held</div>
-                    <div className="font-mono text-white/80">
+                    <div
+                      className={`font-mono ${Number(escrow.held) > 0 ? "text-red-300" : "text-white/80"}`}
+                    >
                       {formatMotes(escrow.held)}
                     </div>
                   </div>

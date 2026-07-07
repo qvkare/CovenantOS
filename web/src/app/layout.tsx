@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 
+import { CsprClickInit } from "@/components/casper/csprclick-init";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} min-h-screen bg-black font-sans text-white antialiased selection:bg-white selection:text-black`}
       >
+        <CsprClickInit />
         <a href="#main" className="skip-link">
           Skip to main content
         </a>

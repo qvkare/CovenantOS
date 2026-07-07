@@ -1,14 +1,10 @@
 <div align="center">
   <img src="web/public/covenantos-wordmark.png" alt="CovenantOS" width="360" />
+  <br /><br /><br /><br /><br />
   <p>
     <strong><a href="https://covenantos.xyz">covenantos.xyz</a></strong> · agentic covenant monitoring and escrow orchestration for tokenized private credit and receivable-based assets on Casper Network.
   </p>
 </div>
-
-
-
-
-
 
 **CovenantOS** ingests facility agreements, extracts covenants, collects third-party evidence through x402 micropayments, evaluates compliance, and routes policy actions through on-chain multisig before treasury execution.
 
@@ -60,6 +56,8 @@ flowchart TB
   ER -. evidence receipts .- PG
 ```
 
+<br /><br /><br /><br /><br />
+
 **Control flow.** Officers and agents interact with the backend API. The Document Agent extracts covenants from uploaded agreements. The x402 gateway pays the evidence provider for bank or ERP payloads; the Covenant Agent evaluates that evidence against registered covenants and proposes holds or releases through PolicyGuard. After multisig approval, the Treasury Agent executes vault operations. Local and on-chain events are persisted and streamed to the dashboard.
 
 ## Repository
@@ -108,18 +106,27 @@ Deployed on **Casper testnet** (`casper-test`). Explorer links are updated as ne
 
 > Transaction hashes for evidence recording, policy actions, and vault operations will be linked here as they are executed on testnet.
 
-## Operations guide
+## Operations guide (live demo)
 
-1. Start the stack (`docker compose up --build` or local dev commands above).
-2. Open the dashboard at http://localhost:3000.
-3. Run a covenant check on a facility:
-   ```bash
-   curl -X POST http://localhost:3001/facilities/fac-demo-002/check \
-     -H 'Content-Type: application/json' \
-     -d '{"scenario":"breach"}'
-   ```
-4. Approve the proposed hold from the Approvals view or via `POST /actions/:id/approve`.
-5. Monitor live activity on `GET /events/stream` or the facility activity feed.
+1. Open [covenantos.xyz/dashboard](https://covenantos.xyz/dashboard).
+2. Click **Start live demo** (resets fixtures and opens Atlas Receivables).
+3. Click **Run breach demo** — fetches x402 bank evidence, detects DSCR breach, proposes escrow hold.
+4. Connect **CSPR.click** wallet → **Approvals** → **Approve with wallet**.
+5. Confirm escrow **Held** on the facility page and txs in **Audit trail**.
+
+For local development:
+
+```bash
+docker compose up --build
+```
+
+API alternative (step 3):
+
+```bash
+curl -X POST http://localhost:3001/facilities/fac-demo-002/check \
+  -H 'Content-Type: application/json' \
+  -d '{"scenario":"breach"}'
+```
 
 Document extraction: `POST /facilities/extract` (multipart upload; requires `ANTHROPIC_API_KEY`).
 

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { AgentActivityFeed } from "@/components/covenant/agent-activity-feed";
+import { DemoWalkthrough } from "@/components/covenant/demo-walkthrough";
 import { EmptyState } from "@/components/covenant/empty-state";
 import { FacilityRow } from "@/components/covenant/facility-row";
 import { PageHeader } from "@/components/covenant/page-header";
@@ -31,6 +32,8 @@ export default function DashboardPage() {
             </Button>
           }
         />
+
+        <DemoWalkthrough />
 
         {error ? (
           <EmptyState

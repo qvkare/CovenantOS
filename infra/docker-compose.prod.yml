@@ -66,14 +66,14 @@ services:
       args:
         NEXT_PUBLIC_API_URL: https://api.covenantos.xyz
         NEXT_PUBLIC_MSW: "false"
-        NEXT_PUBLIC_CSPRCLICK_APP_ID: csprclick-template
+        NEXT_PUBLIC_CSPRCLICK_APP_ID: ${NEXT_PUBLIC_CSPRCLICK_APP_ID}
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: https://api.covenantos.xyz
       NEXT_PUBLIC_MSW: "false"
-      NEXT_PUBLIC_CSPRCLICK_APP_ID: csprclick-template
+      NEXT_PUBLIC_CSPRCLICK_APP_ID: ${NEXT_PUBLIC_CSPRCLICK_APP_ID}
     depends_on:
       - backend
 

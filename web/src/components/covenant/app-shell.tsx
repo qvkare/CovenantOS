@@ -1,6 +1,7 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useQuery } from "@tanstack/react-query";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { CovenantLogo } from "@/components/covenant/logo";
 import { WalletButton } from "@/components/covenant/wallet-button";
 import { Button } from "@/components/ui/button";
+import { listActions } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 type NavIconName = "dashboard" | "facility" | "approvals" | "audit";
@@ -65,13 +67,19 @@ function NavIcon({ name }: { name: NavIconName }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { data: pendingActions } = useQuery({
+    queryKey: ["actions", "pending"],
+    queryFn: () => listActions("pending"),
+    refetchInterval: 15_000,
+  });
+  const pendingCount = pendingActions?.actions.length ?? 0;
 
   return (
     <div className="relative flex min-h-screen flex-col bg-black text-white">
       <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-black/80 backdrop-blur-xl">
         <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <MobileNav pathname={pathname} />
+            <MobileNav pathname={pathname} pendingCount={pendingCount} />
             <Link href="/dashboard" className="flex items-center">
               <CovenantLogo height={24} />
             </Link>
@@ -80,18 +88,27 @@ export function AppShell({ children }: { children: ReactNode }) {
           <nav className="hidden items-center gap-1 md:flex">
             {NAV.map((item) => {
               const active = pathname?.startsWith(item.href);
+              const badge =
+                item.href === "/approvals" && pendingCount > 0
+                  ? pendingCount
+                  : undefined;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                    "relative rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                     active
                       ? "bg-white/[0.08] text-white"
                       : "text-white/50 hover:bg-white/[0.04] hover:text-white",
                   )}
                 >
                   {item.label}
+                  {badge ? (
+                    <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {badge}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -115,6 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               label="Operations"
               items={NAV.filter((n) => n.icon !== "dashboard")}
               pathname={pathname}
+              pendingCount={pendingCount}
             />
           </div>
           <div className="border-t border-white/10 pt-4">
@@ -142,11 +160,13 @@ function SidebarSection({
   items,
   pathname,
   onNavigate,
+  pendingCount = 0,
 }: {
   label: string;
   items: NavItem[];
   pathname: string | null | undefined;
   onNavigate?: () => void;
+  pendingCount?: number;
 }) {
   if (items.length === 0) return null;
   return (
@@ -171,6 +191,11 @@ function SidebarSection({
             >
               <NavIcon name={item.icon} />
               {item.label}
+              {item.href === "/approvals" && pendingCount > 0 ? (
+                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {pendingCount}
+                </span>
+              ) : null}
             </Link>
           );
         })}
@@ -179,7 +204,13 @@ function SidebarSection({
   );
 }
 
-function MobileNav({ pathname }: { pathname: string | null }) {
+function MobileNav({
+  pathname,
+  pendingCount,
+}: {
+  pathname: string | null;
+  pendingCount: number;
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -235,6 +266,7 @@ function MobileNav({ pathname }: { pathname: string | null }) {
               items={NAV.filter((n) => n.icon !== "dashboard")}
               pathname={pathname}
               onNavigate={() => setOpen(false)}
+              pendingCount={pendingCount}
             />
           </div>
         </DialogPrimitive.Content>
