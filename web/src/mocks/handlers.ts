@@ -1,6 +1,6 @@
 import { http, HttpResponse, delay } from "msw";
 
-import { getDemoStore } from "@covenantos/shared";
+import { DEMO_FACILITY_IDS, getDemoStore } from "@covenantos/shared";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -39,10 +39,28 @@ export const handlers = [
 
   http.post(`${API}/facilities/:id/check`, async ({ params }) => {
     await delay(800);
-    const result = getDemoStore().checkFacility(String(params.id));
-    if (!result) {
+    const id = String(params.id);
+    const store = getDemoStore();
+    const facility = store.getFacility(id);
+    if (!facility) {
       return HttpResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    const scenario = id === DEMO_FACILITY_IDS.breach ? "breach" : "healthy";
+    const rawPayload =
+      scenario === "breach"
+        ? { dscr: 0.82, cashBalance: 120000, scenario: "breach" }
+        : { dscr: 1.45, cashBalance: 540000, scenario: "healthy" };
+
+    store.recordEvidence(id, {
+      sourceId: "bank-statement",
+      payloadHash: `mock-${scenario}-${Date.now()}`,
+      rawPayload,
+      x402PaymentRef: `x402-mock-${Date.now()}`,
+      onchainReceiptTx: `deploy-mock-evidence-${Date.now()}abcdef1234567890ab`,
+    });
+
+    const result = store.evaluateLatestEvidence(id);
     return HttpResponse.json(result);
   }),
 

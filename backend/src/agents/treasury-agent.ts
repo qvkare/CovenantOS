@@ -1,2 +1,1 @@
-// Phase 6: Treasury Agent — execute approved actions with spend limits
-export {};
+export { TreasuryAgent, type TreasuryExecutionResult } from "./treasury/index.js";

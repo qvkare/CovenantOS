@@ -8,6 +8,11 @@ import {
 import type { CovenantRecord } from "../types/covenant.js";
 import type { Evidence } from "../types/evidence.js";
 import type { ChainEvent } from "../types/events.js";
+import {
+  bankPayloadFromEvidence,
+  evaluateCovenants,
+  type CovenantEvaluation,
+} from "../covenant/evaluate.js";
 
 export const DEMO_FACILITY_IDS = {
   healthy: "fac-demo-001",
@@ -251,6 +256,20 @@ const EMPTY_ESCROW: EscrowState = {
 
 export type DemoEventListener = (event: ChainEvent) => void;
 
+export type CovenantCheckResult =
+  | { status: "ok"; evaluation: CovenantEvaluation }
+  | { status: "warning"; evaluation: CovenantEvaluation }
+  | { status: "breach"; evaluation: CovenantEvaluation; action?: ProposedAction }
+  | { status: "release_pending"; action: ProposedAction }
+  | { status: "no_evidence" };
+
+export const POLICY_APPROVAL_WEIGHT = {
+  hold: 2,
+  release: 2,
+  top_up: 1,
+  pause: 2,
+} as const;
+
 export class DemoStore {
   private facilities: FacilitySummary[];
   private covenantsByFacility: Record<string, CovenantRecord[]>;
@@ -309,6 +328,171 @@ export class DemoStore {
 
   getAudit(id: string) {
     return this.auditByFacility[id] ?? [];
+  }
+
+  getAction(id: string): ProposedAction | undefined {
+    return this.actions.find((a) => a.id === id);
+  }
+
+  recordEvidence(
+    facilityId: string,
+    input: {
+      sourceId: string;
+      payloadHash: string;
+      rawPayload: Record<string, unknown>;
+      x402PaymentRef?: string;
+      onchainReceiptTx?: string;
+    },
+  ): Evidence | null {
+    const facility = this.facilities.find((f) => f.id === facilityId);
+    if (!facility) return null;
+
+    const now = this.now();
+    const evidence: Evidence = {
+      id: `ev-${Date.now()}`,
+      facilityId,
+      sourceId: input.sourceId,
+      payloadHash: input.payloadHash,
+      x402PaymentRef: input.x402PaymentRef,
+      onchainReceiptTx: input.onchainReceiptTx,
+      rawPayload: input.rawPayload,
+      createdAt: now,
+    };
+
+    this.evidenceByFacility[facilityId] = [
+      ...(this.evidenceByFacility[facilityId] ?? []),
+      evidence,
+    ];
+
+    if (!this.auditByFacility[facilityId]) {
+      this.auditByFacility[facilityId] = [];
+    }
+    this.auditByFacility[facilityId]!.unshift({
+      decisionId: `dec-evidence-${Date.now()}`,
+      facilityId,
+      actionType: "evidence",
+      actor: "x402-gateway",
+      reasoningSummary: "Paid bank statement retrieved via x402 negotiation.",
+      policyOutcome: "recorded",
+      evidenceHashes: [input.payloadHash],
+      approvalTxs: [],
+      executionTx: input.onchainReceiptTx,
+      createdAt: now,
+    });
+
+    this.emit({
+      id: `evt-evidence-${Date.now()}`,
+      type: "EvidenceRecorded",
+      facilityId,
+      payload: { evidenceId: evidence.id, payloadHash: input.payloadHash },
+      txHash: input.onchainReceiptTx,
+      createdAt: now,
+    });
+
+    return evidence;
+  }
+
+  applyCovenantEvaluation(
+    facilityId: string,
+    evaluation: CovenantEvaluation,
+    evidence: Evidence,
+  ): CovenantCheckResult {
+    const facility = this.facilities.find((f) => f.id === facilityId);
+    if (!facility) {
+      return { status: "no_evidence" };
+    }
+
+    const now = this.now();
+    const covenants = this.covenantsByFacility[facilityId] ?? [];
+    const breachCount = evaluation.breaches.filter((b) => b.severity === "breach").length;
+    const warningCount = evaluation.breaches.filter((b) => b.severity === "warning").length;
+
+    facility.covenantBreach = breachCount;
+    facility.covenantWarning = warningCount;
+    facility.covenantOk = Math.max(0, covenants.length - breachCount - warningCount);
+    facility.lastCheckedAt = now;
+    facility.updatedAt = now;
+
+    if (evaluation.status === "breach") {
+      facility.status = "breach";
+
+      const primary = evaluation.breaches.find((b) => b.severity === "breach");
+      this.emit({
+        id: `evt-breach-${Date.now()}`,
+        type: "BreachDetected",
+        facilityId,
+        payload: {
+          covenantType: primary?.type ?? "DSCR",
+          observed: primary?.observed,
+          threshold: primary?.threshold,
+        },
+        createdAt: now,
+      });
+
+      const pendingHold = this.actions.find(
+        (a) =>
+          a.facilityId === facilityId &&
+          a.type === "hold" &&
+          isPendingAction(a.status),
+      );
+
+      if (!pendingHold) {
+        const holdAction = this.createHoldAction(
+          facility,
+          evidence.id,
+          evidence.payloadHash,
+          evaluation,
+        );
+        this.emit({
+          id: `evt-proposed-${Date.now()}`,
+          type: "ActionProposed",
+          facilityId,
+          payload: { actionId: holdAction.id, type: "hold" },
+          createdAt: now,
+        });
+        return { status: "breach", evaluation, action: holdAction };
+      }
+
+      return { status: "breach", evaluation };
+    }
+
+    if (evaluation.status === "ok" && facility.status === "breach") {
+      const holdExecuted = this.actions.some(
+        (a) =>
+          a.facilityId === facilityId && a.type === "hold" && a.status === "executed",
+      );
+      if (holdExecuted) {
+        return this.proposeRelease(facility);
+      }
+    }
+
+    if (evaluation.status === "ok") {
+      this.emit({
+        id: `evt-ok-${Date.now()}`,
+        type: "EvidenceRecorded",
+        facilityId,
+        payload: { status: "ok" },
+        createdAt: now,
+      });
+    }
+
+    return { status: evaluation.status, evaluation };
+  }
+
+  evaluateLatestEvidence(facilityId: string): CovenantCheckResult | null {
+    const facility = this.facilities.find((f) => f.id === facilityId);
+    if (!facility) return null;
+
+    const evidenceList = this.evidenceByFacility[facilityId] ?? [];
+    const latest = evidenceList[evidenceList.length - 1];
+    if (!latest) {
+      return { status: "no_evidence" };
+    }
+
+    const covenants = this.covenantsByFacility[facilityId] ?? [];
+    const payload = bankPayloadFromEvidence(latest.rawPayload);
+    const evaluation = evaluateCovenants(covenants, payload);
+    return this.applyCovenantEvaluation(facilityId, evaluation, latest);
   }
 
   extractCovenants() {
@@ -373,108 +557,23 @@ export class DemoStore {
     return null;
   }
 
-  checkFacility(id: string) {
-    const facility = this.facilities.find((f) => f.id === id);
-    if (!facility) return null;
-
-    if (facility.status === "active") {
-      return this.applyBreach(facility);
-    }
-
-    if (facility.status === "breach") {
-      const holdExecuted = this.actions.some(
-        (a) =>
-          a.facilityId === id && a.type === "hold" && a.status === "executed",
-      );
-      if (holdExecuted) {
-        return this.proposeRelease(facility);
-      }
-    }
-
-    this.emit({
-      id: `evt-ok-${Date.now()}`,
-      type: "EvidenceRecorded",
-      facilityId: id,
-      payload: { status: "ok" },
-      createdAt: this.now(),
-    });
-    return { status: "ok" as const };
-  }
-
-  private applyBreach(facility: FacilitySummary) {
-    const id = facility.id;
-    const now = this.now();
-    const evidenceId = `ev-breach-${Date.now()}`;
-    const payloadHash =
-      "deadbeefcafebabe1234567890abcdef1234567890abcdef1234567890ab";
-    const receiptTx = `deploy-breach-evidence-${Date.now()}abcdef1234567890abcdef1234567890ab`;
-
-    facility.status = "breach";
-    facility.covenantOk = Math.max(0, facility.covenantOk - 2);
-    facility.covenantWarning = 1;
-    facility.covenantBreach = 1;
-    facility.lastCheckedAt = now;
-    facility.updatedAt = now;
-
-    const evidence: Evidence = {
-      id: evidenceId,
-      facilityId: id,
-      sourceId: "mock-bank-statement",
-      payloadHash,
-      x402PaymentRef: `x402-pay-breach-${Date.now()}`,
-      onchainReceiptTx: receiptTx,
-      rawPayload: { dscr: 0.91, agingPct: 0.24, scenario: "breach" },
-      createdAt: now,
-    };
-    this.evidenceByFacility[id] = [
-      ...(this.evidenceByFacility[id] ?? []),
-      evidence,
-    ];
-
-    if (!this.auditByFacility[id]) this.auditByFacility[id] = [];
-    this.auditByFacility[id]!.unshift({
-      decisionId: `dec-evidence-${Date.now()}`,
-      facilityId: id,
-      actionType: "evidence",
-      actor: "x402-gateway",
-      reasoningSummary:
-        "Paid mock bank statement retrieved via x402 negotiation (breach scenario).",
-      policyOutcome: "recorded on-chain",
-      evidenceHashes: [payloadHash],
-      approvalTxs: [],
-      executionTx: receiptTx,
-      createdAt: now,
-    });
-
-    const holdAction = this.createHoldAction(facility, evidenceId, payloadHash);
-
-    this.emit({
-      id: `evt-breach-${Date.now()}`,
-      type: "BreachDetected",
-      facilityId: id,
-      payload: { covenantType: "DSCR", observed: 0.91, threshold: 1.2 },
-      createdAt: now,
-    });
-    this.emit({
-      id: `evt-proposed-${Date.now()}`,
-      type: "ActionProposed",
-      facilityId: id,
-      payload: { actionId: holdAction.id, type: "hold" },
-      createdAt: now,
-    });
-
-    return {
-      status: "breach" as const,
-      event: { type: "BreachDetected" as const, facilityId: id },
-    };
+  checkFacility(id: string): CovenantCheckResult | null {
+    return this.evaluateLatestEvidence(id);
   }
 
   private createHoldAction(
     facility: FacilitySummary,
     evidenceId: string,
     payloadHash: string,
+    evaluation: CovenantEvaluation,
   ) {
     const now = this.now();
+    const primary =
+      evaluation.breaches.find((b) => b.severity === "breach") ?? evaluation.breaches[0];
+    const reasoningSummary = primary
+      ? `${primary.message}; x402 bank statement (${payloadHash.slice(0, 8)}…) confirms breach. Recommend escrow hold pending remediation.`
+      : "Covenant breach detected. Recommend escrow hold pending remediation.";
+
     const action: ProposedAction = {
       id: `act-hold-${Date.now()}`,
       facilityId: facility.id,
@@ -482,8 +581,8 @@ export class DemoStore {
       status: "proposed",
       evidenceIds: [evidenceId],
       proposedByAgent: "covenant-agent",
-      reasoningSummary: `DSCR fell to 0.91 vs covenant threshold; x402 bank statement (${payloadHash.slice(0, 8)}…) confirms breach. Recommend escrow hold pending remediation.`,
-      requiredApprovalWeight: 3,
+      reasoningSummary,
+      requiredApprovalWeight: POLICY_APPROVAL_WEIGHT.hold,
       currentApprovalWeight: 1,
       paramsHash: `params-hold-${facility.id.slice(-6)}`,
       createdAt: now,
@@ -499,7 +598,7 @@ export class DemoStore {
       facilityId: facility.id,
       actionType: "hold",
       actor: "covenant-agent",
-      reasoningSummary: action.reasoningSummary,
+      reasoningSummary,
       policyOutcome: "proposed — awaiting officer approval",
       evidenceHashes: [payloadHash],
       approvalTxs: [],
@@ -530,7 +629,7 @@ export class DemoStore {
       proposedByAgent: "covenant-agent",
       reasoningSummary:
         "Remediation evidence received; DSCR back within threshold. Recommend releasing held escrow.",
-      requiredApprovalWeight: 2,
+      requiredApprovalWeight: POLICY_APPROVAL_WEIGHT.release,
       currentApprovalWeight: 1,
       paramsHash: `params-release-${facility.id.slice(-6)}`,
       createdAt: now,
@@ -576,22 +675,54 @@ export class DemoStore {
     }
 
     if (action.currentApprovalWeight >= action.requiredApprovalWeight) {
-      action.status = "executed";
-      action.onchainActionId = approvalTx;
-      this.applyExecutedAction(action, approvalTx);
+      action.status = "executable";
       this.emit({
-        id: `evt-exec-${Date.now()}`,
+        id: `evt-exec-ready-${Date.now()}`,
         type: "ActionExecutable",
         facilityId: action.facilityId,
         payload: { actionId: id, type: action.type },
         txHash: approvalTx,
         createdAt: now,
       });
+    } else if (action.currentApprovalWeight > 1) {
+      action.status = "approved";
     } else {
       action.status = "proposed";
     }
 
     action.updatedAt = now;
+    return action;
+  }
+
+  executeAction(id: string, txHash?: string): ProposedAction | null {
+    const action = this.actions.find((a) => a.id === id);
+    if (!action || action.status !== "executable") return null;
+
+    const now = this.now();
+    const executionTx =
+      txHash ??
+      `deploy-exec-${id.slice(-6)}abcdef1234567890abcdef1234567890ab`;
+
+    action.status = "executed";
+    action.onchainActionId = executionTx;
+    action.updatedAt = now;
+    this.applyExecutedAction(action, executionTx);
+
+    const audit = this.auditByFacility[action.facilityId] ?? [];
+    const holdAudit = audit.find((e) => e.actionType === action.type);
+    if (holdAudit) {
+      holdAudit.executionTx = executionTx;
+    }
+
+    this.emit({
+      id: `evt-exec-${Date.now()}`,
+      type: "ActionExecutable",
+      facilityId: action.facilityId,
+      payload: { actionId: id, type: action.type, executed: true },
+      txHash: executionTx,
+      createdAt: now,
+    });
+
     return action;
   }
 

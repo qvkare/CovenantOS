@@ -53,4 +53,5 @@ export class ChainService {
 
 export { CasperChainClient } from "./client.js";
 export { ContractRegistry, syncTestnetConfigFromOdraToml } from "./contracts.js";
+export { ChainWriter, type ProposeActionInput } from "./writer.js";
 export { loadChainEnv, loadTestnetConfig } from "./config.js";

@@ -1,9 +1,20 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
-import { getDemoStore } from "@covenantos/shared";
+import { DEMO_FACILITY_IDS, getDemoStore } from "@covenantos/shared";
 import { DocumentAgent } from "../agents/document-agent.js";
+import { CovenantAgent } from "../agents/covenant-agent.js";
+import { X402Gateway } from "../x402/index.js";
 
 const documentAgent = new DocumentAgent();
+const covenantAgent = new CovenantAgent();
+let gateway: X402Gateway | undefined;
+
+function getGateway(): X402Gateway {
+  if (!gateway) {
+    gateway = new X402Gateway();
+  }
+  return gateway;
+}
 
 async function extractFromUpload(request: FastifyRequest, reply: FastifyReply) {
   const file = await request.file();
@@ -64,10 +75,33 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
 
   app.post("/facilities/:id/check", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const result = getDemoStore().checkFacility(id);
-    if (!result) {
+    const body = (request.body ?? {}) as {
+      fetchEvidence?: boolean;
+      scenario?: "healthy" | "breach";
+    };
+
+    const facility = getDemoStore().getFacility(id);
+    if (!facility) {
       return reply.status(404).send({ error: "Facility not found" });
     }
+
+    const fetchEvidence = body.fetchEvidence !== false;
+    if (fetchEvidence) {
+      const scenario =
+        body.scenario ??
+        (id === DEMO_FACILITY_IDS.breach ? "breach" : "healthy");
+
+      try {
+        const fetchResult = await getGateway().fetchBankStatement(scenario, id);
+        const result = await covenantAgent.ingestFetchResult(id, fetchResult);
+        return reply.send(result);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Covenant check failed";
+        return reply.status(502).send({ error: message });
+      }
+    }
+
+    const result = covenantAgent.runCheck(id);
     return reply.send(result);
   });
 

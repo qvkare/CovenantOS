@@ -1,14 +1,23 @@
 import type { FastifyInstance } from "fastify";
 import { getDemoStore } from "@covenantos/shared";
+import { CovenantAgent } from "../agents/covenant-agent.js";
 import { X402Gateway } from "../x402/index.js";
 
 let gateway: X402Gateway | undefined;
+let covenantAgent: CovenantAgent | undefined;
 
 function getGateway(): X402Gateway {
   if (!gateway) {
     gateway = new X402Gateway();
   }
   return gateway;
+}
+
+function getCovenantAgent(): CovenantAgent {
+  if (!covenantAgent) {
+    covenantAgent = new CovenantAgent();
+  }
+  return covenantAgent;
 }
 
 export async function registerEvidenceRoutes(app: FastifyInstance) {
@@ -31,11 +40,14 @@ export async function registerEvidenceRoutes(app: FastifyInstance) {
     const scenario = body.scenario ?? "healthy";
 
     try {
-      const result = await getGateway().fetchBankStatement(scenario, id);
+      const fetchResult = await getGateway().fetchBankStatement(scenario, id);
+      const check = await getCovenantAgent().ingestFetchResult(id, fetchResult);
+
       return reply.send({
-        evidence: result.data,
-        payment: result.payment,
-        transactionHash: result.transactionHash,
+        evidence: fetchResult.data,
+        payment: fetchResult.payment,
+        transactionHash: fetchResult.transactionHash,
+        covenantCheck: check,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Evidence fetch failed";

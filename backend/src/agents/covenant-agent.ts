@@ -1,2 +1,1 @@
-// Phase 6: Covenant Agent — scheduled checks, breach detection, propose_action
-export {};
+export { CovenantAgent, MIN_EVIDENCE_FOR_PROPOSE } from "./covenant/index.js";

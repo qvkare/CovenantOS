@@ -8,7 +8,7 @@ CovenantOS reads facility documents, extracts covenants, collects evidence via p
 
 Early development — built for the [Casper Agentic Buildathon 2026](https://dorahacks.io/hackathon/casper-agentic-buildathon/detail).
 
-**Current phase:** x402 gateway + data provider (Phase 5)
+**Current phase:** Covenant + Treasury agents + approval flow (Phase 6)
 
 ## Monorepo
 
@@ -60,7 +60,11 @@ Backend chain status: `GET http://localhost:3001/chain/status`
 
 Document extraction: `POST /facilities/extract` (multipart file upload). Requires `ANTHROPIC_API_KEY`; uses `ANTHROPIC_MODEL` (default `claude-haiku-4-5-20251001`).
 
-x402 evidence: `POST /facilities/:id/evidence` — pays the data provider with a real testnet CSPR transfer, verified on-chain before data is returned.
+x402 evidence: `POST /facilities/:id/evidence` — pays the data provider, records evidence, runs covenant evaluation, and may propose a hold action on breach.
+
+Covenant check: `POST /facilities/:id/check` — re-evaluates the latest stored evidence.
+
+Actions: `GET /actions`, `POST /actions/:id/approve` (auto-executes via Treasury when threshold met), `POST /actions/:id/execute`.
 
 ## Implementation phases
 
@@ -68,8 +72,8 @@ x402 evidence: `POST /facilities/:id/evidence` — pays the data provider with a
 2. Odra contract trio + tests ✓
 3. Testnet deploy + chain service ✓
 4. Document Agent + golden-file tests ✓
-5. x402 gateway + data provider (in progress)
-6. Covenant + Treasury agents + approval flow
+5. x402 gateway + data provider ✓
+6. Covenant + Treasury agents + approval flow ✓
 7. Indexer + SSE
 8. Security hardening, seed demo, README polish
 
