@@ -1,0 +1,42 @@
+# Local planning docs (not for public repo)
+plans/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+target/
+wasm/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.swo
+
+# Logs & caches
+*.log
+npm-debug.log*
+.cache/
+.turbo/
+
+# Test & coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.tsbuildinfo
