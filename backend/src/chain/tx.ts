@@ -39,7 +39,10 @@ export function parseProposedActionId(result: CasperWaitResult): string | undefi
   const raw = result.rawJSON;
   if (!raw) return undefined;
 
-  const match = raw.match(/"action_id"\s*:\s*"?(\d+)"?/);
+  // casper-js-sdk exposes rawJSON as a parsed object here, but older paths
+  // return a JSON string — handle both without throwing.
+  const text = typeof raw === "string" ? raw : JSON.stringify(raw);
+  const match = text.match(/"action_id"\s*:\s*"?(\d+)"?/);
   return match?.[1];
 }
 

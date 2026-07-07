@@ -1,4 +1,4 @@
-import type { EvidenceProviderResponse } from "@covenantos/shared";
+import type { EvidenceProviderResponse, ProposedAction } from "@covenantos/shared";
 import {
   bankPayloadFromEvidence,
   evaluateCovenants,
@@ -71,34 +71,41 @@ export class CovenantAgent {
     const result = store.applyCovenantEvaluation(input.facilityId, evaluation, evidence);
 
     if (result.status === "breach" && result.action) {
-      const propose = await this.chainWriter.proposeAction({
-        facilityId: input.facilityId,
-        actionType: "hold",
-        paramsHash: result.action.paramsHash ?? result.action.id,
-      });
-      if (propose) {
-        store.setActionChainIds(result.action.id, {
-          proposeTxHash: propose.txHash,
-          onchainActionId: propose.actionId,
-        });
-      }
+      await this.proposeOnChain(input.facilityId, "hold", result.action);
     }
 
     if (result.status === "release_pending" && result.action) {
+      await this.proposeOnChain(input.facilityId, "release", result.action);
+    }
+
+    return result;
+  }
+
+  /**
+   * Submit the PolicyGuard proposal on-chain and persist the resulting tx hash.
+   * On-chain hiccups must never fail the covenant check — the breach and the
+   * proposed action are already recorded off-chain.
+   */
+  private async proposeOnChain(
+    facilityId: string,
+    actionType: "hold" | "release",
+    action: ProposedAction,
+  ): Promise<void> {
+    try {
       const propose = await this.chainWriter.proposeAction({
-        facilityId: input.facilityId,
-        actionType: "release",
-        paramsHash: result.action.paramsHash ?? result.action.id,
+        facilityId,
+        actionType,
+        paramsHash: action.paramsHash ?? action.id,
       });
       if (propose) {
-        store.setActionChainIds(result.action.id, {
+        getAppStore().setActionChainIds(action.id, {
           proposeTxHash: propose.txHash,
           onchainActionId: propose.actionId,
         });
       }
+    } catch (error) {
+      console.warn(`propose_action on-chain failed for ${action.id}`, error);
     }
-
-    return result;
   }
 
   async ingestFetchResult(

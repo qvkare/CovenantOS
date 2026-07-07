@@ -175,6 +175,13 @@ export class ChainWriter {
       return this.mockTx("vault", input.actionType, input.facilityId);
     }
 
+    // The vault requires the numeric PolicyGuard action id. When it could not
+    // be resolved from the propose_action result, record the execution off-chain
+    // instead of reverting the whole approval flow.
+    if (!/^\d+$/.test(input.onchainActionId)) {
+      return this.mockTx("vault", input.actionType, input.facilityId);
+    }
+
     const facilityU64 = toFacilityU64(input.facilityId);
     const actionId = BigInt(input.onchainActionId);
     const amount = input.amountMotes ?? HOLD_AMOUNT_MOTES;
