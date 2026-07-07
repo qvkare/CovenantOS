@@ -36,7 +36,7 @@ function resolveProvider(): CovenantExtractionProvider {
   }
 
   const model =
-    process.env.ANTHROPIC_MODEL?.trim() ?? "claude-3-5-haiku-20241022";
+    process.env.ANTHROPIC_MODEL?.trim() ?? "claude-haiku-4-5-20251001";
   return new ClaudeExtractionProvider(apiKey, model);
 }
 

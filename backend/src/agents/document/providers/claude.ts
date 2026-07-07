@@ -26,7 +26,7 @@ export class ClaudeExtractionProvider implements CovenantExtractionProvider {
   readonly name = "claude" as const;
   private readonly client: Anthropic;
 
-  constructor(apiKey: string, private readonly model = "claude-3-5-haiku-20241022") {
+  constructor(apiKey: string, private readonly model = "claude-haiku-4-5-20251001") {
     this.client = new Anthropic({ apiKey });
   }
 

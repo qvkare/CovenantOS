@@ -58,7 +58,7 @@ npm run chain:sync-deploy -w backend   # writes addresses to shared/config/testn
 
 Backend chain status: `GET http://localhost:3001/chain/status`
 
-Document extraction: `POST /facilities/extract` (multipart file upload). Requires `ANTHROPIC_API_KEY`; uses `ANTHROPIC_MODEL` (default `claude-3-5-haiku-20241022`).
+Document extraction: `POST /facilities/extract` (multipart file upload). Requires `ANTHROPIC_API_KEY`; uses `ANTHROPIC_MODEL` (default `claude-haiku-4-5-20251001`).
 
 x402 evidence: `POST /facilities/:id/evidence` — pays the data provider with a real testnet CSPR transfer, verified on-chain before data is returned.
 
