@@ -1,9 +1,8 @@
-//! FacilityVault — escrow hold/release tied to PolicyGuard approvals.
-
+use odra::casper_types::U512;
 use odra::prelude::*;
-use odra::Address;
+use odra::ContractRef;
 
-use crate::policy_guard::PolicyGuard;
+use crate::policy_guard::PolicyGuardContractRef;
 use crate::types::{ACTION_HOLD, ACTION_RELEASE, ACTION_TOP_UP_RESERVE};
 
 #[odra::event]
@@ -35,7 +34,19 @@ pub struct ReserveToppedUp {
     pub action_id: u64,
 }
 
-#[odra::module(events = [Deposited, Held, Released, ReserveToppedUp])]
+#[odra::odra_error]
+pub enum Error {
+    ZeroDeposit = 1,
+    PolicyGuardNotSet = 2,
+    InsufficientBalance = 3,
+    InsufficientHeldBalance = 4,
+    FacilityPaused = 5,
+}
+
+#[odra::module(
+    events = [Deposited, Held, Released, ReserveToppedUp],
+    errors = Error
+)]
 pub struct FacilityVault {
     owner: Var<Address>,
     policy_guard: Var<Address>,
@@ -46,7 +57,6 @@ pub struct FacilityVault {
 
 #[odra::module]
 impl FacilityVault {
-    #[odra(init)]
     pub fn init(&mut self, owner: Address, policy_guard: Address) {
         self.owner.set(owner);
         self.policy_guard.set(policy_guard);
@@ -56,11 +66,10 @@ impl FacilityVault {
     pub fn deposit(&mut self, facility_id: u64) {
         let amount = self.env().attached_value();
         if amount.is_zero() {
-            odra::revert("ZERO_DEPOSIT");
+            self.env().revert(Error::ZeroDeposit);
         }
 
         self.balances.add(&facility_id, amount);
-
         self.env().emit_event(Deposited {
             facility_id,
             amount,
@@ -70,17 +79,16 @@ impl FacilityVault {
 
     pub fn hold(&mut self, facility_id: u64, amount: U512, action_id: u64) {
         self.assert_policy_active();
-        PolicyGuard::at(self.policy_guard.get_or_default())
+        self.policy()
             .consume_executable_action(action_id, ACTION_HOLD, facility_id);
 
         let balance = self.balances.get_or_default(&facility_id);
         if balance < amount {
-            odra::revert("INSUFFICIENT_BALANCE");
+            self.env().revert(Error::InsufficientBalance);
         }
 
         self.balances.set(&facility_id, balance - amount);
         self.held.add(&facility_id, amount);
-
         self.env().emit_event(Held {
             facility_id,
             amount,
@@ -90,20 +98,16 @@ impl FacilityVault {
 
     pub fn release(&mut self, facility_id: u64, recipient: Address, amount: U512, action_id: u64) {
         self.assert_policy_active();
-        PolicyGuard::at(self.policy_guard.get_or_default()).consume_executable_action(
-            action_id,
-            ACTION_RELEASE,
-            facility_id,
-        );
+        self.policy()
+            .consume_executable_action(action_id, ACTION_RELEASE, facility_id);
 
         let held = self.held.get_or_default(&facility_id);
         if held < amount {
-            odra::revert("INSUFFICIENT_HELD_BALANCE");
+            self.env().revert(Error::InsufficientHeldBalance);
         }
 
         self.held.set(&facility_id, held - amount);
         self.env().transfer_tokens(&recipient, &amount);
-
         self.env().emit_event(Released {
             facility_id,
             recipient,
@@ -114,7 +118,7 @@ impl FacilityVault {
 
     pub fn top_up_reserve(&mut self, facility_id: u64, amount: U512, action_id: u64) {
         self.assert_policy_active();
-        PolicyGuard::at(self.policy_guard.get_or_default()).consume_executable_action(
+        self.policy().consume_executable_action(
             action_id,
             ACTION_TOP_UP_RESERVE,
             facility_id,
@@ -122,12 +126,11 @@ impl FacilityVault {
 
         let balance = self.balances.get_or_default(&facility_id);
         if balance < amount {
-            odra::revert("INSUFFICIENT_BALANCE");
+            self.env().revert(Error::InsufficientBalance);
         }
 
         self.balances.set(&facility_id, balance - amount);
         self.reserve.add(&facility_id, amount);
-
         self.env().emit_event(ReserveToppedUp {
             facility_id,
             amount,
@@ -147,9 +150,18 @@ impl FacilityVault {
         self.reserve.get_or_default(&facility_id)
     }
 
+    fn policy(&self) -> PolicyGuardContractRef {
+        PolicyGuardContractRef::new(
+            self.env(),
+            self.policy_guard
+                .get()
+                .unwrap_or_revert_with(self, Error::PolicyGuardNotSet),
+        )
+    }
+
     fn assert_policy_active(&self) {
-        if PolicyGuard::at(self.policy_guard.get_or_default()).is_paused() {
-            odra::revert("FACILITY_PAUSED");
+        if self.policy().is_paused() {
+            self.env().revert(Error::FacilityPaused);
         }
     }
 }
@@ -157,28 +169,48 @@ impl FacilityVault {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use odra::host::{Deployer, HostEnv, HostEnvExt};
+    use crate::policy_guard::PolicyGuardInitArgs;
+    use odra::host::{Deployer, HostRef};
 
-    #[test]
-    fn hold_and_release_with_approved_action() {
-        let env = HostEnv::new();
+    fn setup(
+        env: &odra::host::HostEnv,
+    ) -> (
+        crate::policy_guard::PolicyGuardHostRef,
+        FacilityVaultHostRef,
+        Address,
+        Address,
+        Address,
+    ) {
         let owner = env.get_account(0);
         let signer_a = env.get_account(1);
         let signer_b = env.get_account(2);
         let depositor = env.get_account(3);
 
-        let mut deployer = env.get_deployer();
-        let mut policy = PolicyGuard::deploy(&mut deployer, owner);
+        let mut policy =
+            crate::policy_guard::PolicyGuard::deploy(&env, PolicyGuardInitArgs { owner });
 
         env.set_caller(owner);
         policy.set_signer_weight(signer_a, 1);
         policy.set_signer_weight(signer_b, 2);
 
-        let mut deployer = env.get_deployer();
-        let mut vault = FacilityVault::deploy(&mut deployer, owner, policy.address());
+        let vault = FacilityVault::deploy(
+            &env,
+            FacilityVaultInitArgs {
+                owner,
+                policy_guard: policy.address(),
+            },
+        );
 
         env.set_caller(owner);
         policy.set_vault(vault.address());
+
+        (policy, vault, signer_a, signer_b, depositor)
+    }
+
+    #[test]
+    fn hold_and_release_with_approved_action() {
+        let env = odra_test::env();
+        let (mut policy, mut vault, signer_a, signer_b, depositor) = setup(&env);
 
         let deposit_amount = U512::from(1_000_000_000_000u64);
         env.set_caller(depositor);
@@ -212,22 +244,8 @@ mod tests {
 
     #[test]
     fn top_up_reserve_moves_balance_to_reserve() {
-        let env = HostEnv::new();
-        let owner = env.get_account(0);
-        let signer_a = env.get_account(1);
-        let depositor = env.get_account(2);
-
-        let mut deployer = env.get_deployer();
-        let mut policy = PolicyGuard::deploy(&mut deployer, owner);
-
-        env.set_caller(owner);
-        policy.set_signer_weight(signer_a, 1);
-
-        let mut deployer = env.get_deployer();
-        let mut vault = FacilityVault::deploy(&mut deployer, owner, policy.address());
-
-        env.set_caller(owner);
-        policy.set_vault(vault.address());
+        let env = odra_test::env();
+        let (mut policy, mut vault, signer_a, _signer_b, depositor) = setup(&env);
 
         let deposit_amount = U512::from(500_000_000_000u64);
         env.set_caller(depositor);

@@ -1,18 +1,10 @@
-//! CovenantOS smart contracts for Casper Network.
-//!
-//! ```bash
-//! cargo install cargo-odra --locked
-//! cd contracts
-//! cargo odra test
-//! cargo odra build -b casper
-//! ```
+#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_main)]
+extern crate alloc;
 
-mod types;
-mod policy_guard;
-mod evidence_receipt;
-mod facility_vault;
+pub mod types;
+pub mod policy_guard;
+pub mod evidence_receipt;
+pub mod facility_vault;
 
-pub use policy_guard::PolicyGuard;
-pub use evidence_receipt::EvidenceReceipt;
-pub use facility_vault::FacilityVault;
-pub use types::{ActionRecord, EvidenceRecord, ACTION_HOLD, ACTION_RELEASE, ACTION_TOP_UP_RESERVE};
+pub use types::{ACTION_HOLD, ACTION_RELEASE, ACTION_TOP_UP_RESERVE};

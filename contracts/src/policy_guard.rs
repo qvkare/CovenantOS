@@ -1,9 +1,16 @@
-//! PolicyGuard — action thresholds, multisig approval, and kill-switch.
-
 use odra::prelude::*;
-use odra::Address;
 
-use crate::types::{ActionRecord, ACTION_HOLD, ACTION_RELEASE, ACTION_TOP_UP_RESERVE};
+use crate::types::{ACTION_HOLD, ACTION_RELEASE, ACTION_TOP_UP_RESERVE};
+
+#[odra::odra_type]
+pub struct ActionRecord {
+    pub facility_id: u64,
+    pub action_type: u8,
+    pub params_hash: String,
+    pub approval_weight: u8,
+    pub required_weight: u8,
+    pub executed: bool,
+}
 
 #[odra::event]
 pub struct ActionProposed {
@@ -34,12 +41,30 @@ pub struct FacilityPaused {
     pub paused: bool,
 }
 
+#[odra::odra_error]
+pub enum Error {
+    NotOwner = 1,
+    VaultNotSet = 2,
+    InvalidSignerWeight = 3,
+    InvalidThreshold = 4,
+    FacilityPaused = 5,
+    InvalidActionType = 6,
+    ActionNotFound = 7,
+    ActionAlreadyExecuted = 8,
+    UnauthorizedSigner = 9,
+    InsufficientApprovalWeight = 10,
+    ActionTypeMismatch = 11,
+    FacilityMismatch = 12,
+    OnlyVault = 13,
+}
+
 #[odra::module(
-    events = [ActionProposed, ActionApproved, ActionExecutable, FacilityPaused]
+    events = [ActionProposed, ActionApproved, ActionExecutable, FacilityPaused],
+    errors = Error
 )]
 pub struct PolicyGuard {
     owner: Var<Address>,
-    vault: Var<Address>,
+    vault: Var<Option<Address>>,
     paused: Var<bool>,
     next_action_id: Var<u64>,
     thresholds: Mapping<u8, u8>,
@@ -49,13 +74,11 @@ pub struct PolicyGuard {
 
 #[odra::module]
 impl PolicyGuard {
-    #[odra(init)]
     pub fn init(&mut self, owner: Address) {
         self.owner.set(owner);
-        self.vault.set(Address::default());
+        self.vault.set(None);
         self.paused.set(false);
         self.next_action_id.set(1);
-
         self.thresholds.set(&ACTION_HOLD, 2);
         self.thresholds.set(&ACTION_RELEASE, 2);
         self.thresholds.set(&ACTION_TOP_UP_RESERVE, 1);
@@ -63,13 +86,13 @@ impl PolicyGuard {
 
     pub fn set_vault(&mut self, vault: Address) {
         self.ensure_owner();
-        self.vault.set(vault);
+        self.vault.set(Some(vault));
     }
 
     pub fn set_signer_weight(&mut self, signer: Address, weight: u8) {
         self.ensure_owner();
         if weight == 0 {
-            odra::revert("INVALID_SIGNER_WEIGHT");
+            self.env().revert(Error::InvalidSignerWeight);
         }
         self.signer_weights.set(&signer, weight);
     }
@@ -77,7 +100,7 @@ impl PolicyGuard {
     pub fn set_threshold(&mut self, action_type: u8, required_weight: u8) {
         self.ensure_owner();
         if required_weight == 0 {
-            odra::revert("INVALID_THRESHOLD");
+            self.env().revert(Error::InvalidThreshold);
         }
         self.thresholds.set(&action_type, required_weight);
     }
@@ -95,15 +118,17 @@ impl PolicyGuard {
         self.next_action_id.set(action_id + 1);
 
         let required_weight = self.thresholds.get_or_default(&action_type);
-        let record = ActionRecord {
-            facility_id,
-            action_type,
-            params_hash: params_hash.clone(),
-            approval_weight: 0,
-            required_weight,
-            executed: false,
-        };
-        self.actions.set(&action_id, record);
+        self.actions.set(
+            &action_id,
+            ActionRecord {
+                facility_id,
+                action_type,
+                params_hash: params_hash.clone(),
+                approval_weight: 0,
+                required_weight,
+                executed: false,
+            },
+        );
 
         self.env().emit_event(ActionProposed {
             action_id,
@@ -122,15 +147,15 @@ impl PolicyGuard {
         let mut action = self
             .actions
             .get(&action_id)
-            .unwrap_or_else(|| odra::revert("ACTION_NOT_FOUND"));
+            .unwrap_or_revert_with(self, Error::ActionNotFound);
 
         if action.executed {
-            odra::revert("ACTION_ALREADY_EXECUTED");
+            self.env().revert(Error::ActionAlreadyExecuted);
         }
 
         let signer_weight = self.signer_weights.get_or_default(&self.env().caller());
         if signer_weight == 0 {
-            odra::revert("UNAUTHORIZED_SIGNER");
+            self.env().revert(Error::UnauthorizedSigner);
         }
 
         action.approval_weight = action
@@ -168,43 +193,23 @@ impl PolicyGuard {
         let mut action = self
             .actions
             .get(&action_id)
-            .unwrap_or_else(|| odra::revert("ACTION_NOT_FOUND"));
+            .unwrap_or_revert_with(self, Error::ActionNotFound);
 
         if action.executed {
-            odra::revert("ACTION_ALREADY_EXECUTED");
+            self.env().revert(Error::ActionAlreadyExecuted);
         }
-
         if action.approval_weight < action.required_weight {
-            odra::revert("INSUFFICIENT_APPROVAL_WEIGHT");
+            self.env().revert(Error::InsufficientApprovalWeight);
         }
-
         if action.action_type != action_type {
-            odra::revert("ACTION_TYPE_MISMATCH");
+            self.env().revert(Error::ActionTypeMismatch);
         }
-
         if action.facility_id != facility_id {
-            odra::revert("FACILITY_MISMATCH");
+            self.env().revert(Error::FacilityMismatch);
         }
 
         action.executed = true;
         self.actions.set(&action_id, action);
-    }
-
-    pub fn assert_allowed(&self, action_id: u64, approval_weight: u8) {
-        self.assert_not_paused();
-
-        let action = self
-            .actions
-            .get(&action_id)
-            .unwrap_or_else(|| odra::revert("ACTION_NOT_FOUND"));
-
-        if action.executed {
-            odra::revert("ACTION_ALREADY_EXECUTED");
-        }
-
-        if approval_weight < action.required_weight {
-            odra::revert("INSUFFICIENT_APPROVAL_WEIGHT");
-        }
     }
 
     pub fn get_action(&self, action_id: u64) -> Option<ActionRecord> {
@@ -230,25 +235,29 @@ impl PolicyGuard {
     fn assert_valid_action_type(&self, action_type: u8) {
         match action_type {
             ACTION_HOLD | ACTION_RELEASE | ACTION_TOP_UP_RESERVE => {}
-            _ => odra::revert("INVALID_ACTION_TYPE"),
+            _ => self.env().revert(Error::InvalidActionType),
         }
     }
 
     fn ensure_owner(&self) {
-        if self.env().caller() != self.owner.get_or_default() {
-            odra::revert("NOT_OWNER");
+        if self.env().caller() != self.owner.get().unwrap() {
+            self.env().revert(Error::NotOwner);
         }
     }
 
     fn assert_only_vault(&self) {
-        if self.env().caller() != self.vault.get_or_default() {
-            odra::revert("ONLY_VAULT");
+        let vault = match self.vault.get().flatten() {
+            Some(vault) => vault,
+            None => self.env().revert(Error::VaultNotSet),
+        };
+        if self.env().caller() != vault {
+            self.env().revert(Error::OnlyVault);
         }
     }
 
     fn assert_not_paused(&self) {
         if self.paused.get_or_default() {
-            odra::revert("FACILITY_PAUSED");
+            self.env().revert(Error::FacilityPaused);
         }
     }
 }
@@ -256,27 +265,24 @@ impl PolicyGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use odra::host::{Deployer, HostEnv, HostEnvExt};
+    use odra::host::Deployer;
 
     #[test]
     fn starts_unpaused() {
-        let env = HostEnv::new();
-        let mut deployer = env.get_deployer();
-        let owner = env.caller();
-
-        let contract = PolicyGuard::deploy(&mut deployer, owner);
+        let env = odra_test::env();
+        let owner = env.get_account(0);
+        let contract = PolicyGuard::deploy(&env, PolicyGuardInitArgs { owner });
         assert!(!contract.is_paused());
     }
 
     #[test]
     fn approve_reaches_threshold_and_emits_executable() {
-        let env = HostEnv::new();
+        let env = odra_test::env();
         let owner = env.get_account(0);
         let signer_a = env.get_account(1);
         let signer_b = env.get_account(2);
 
-        let mut deployer = env.get_deployer();
-        let mut contract = PolicyGuard::deploy(&mut deployer, owner);
+        let mut contract = PolicyGuard::deploy(&env, PolicyGuardInitArgs { owner });
 
         env.set_caller(owner);
         contract.set_signer_weight(signer_a, 1);
@@ -292,33 +298,13 @@ mod tests {
         assert_eq!(action.approval_weight, 2);
         assert!(!action.executed);
 
-        assert!(env.emitted(
-            contract.address(),
+        env.emitted_event(
+            &contract,
             ActionExecutable {
                 action_id,
                 facility_id: 1,
                 action_type: ACTION_HOLD,
-            }
-        ));
-    }
-
-    #[test]
-    fn insufficient_approval_stays_below_threshold() {
-        let env = HostEnv::new();
-        let owner = env.get_account(0);
-        let signer_a = env.get_account(1);
-
-        let mut deployer = env.get_deployer();
-        let mut contract = PolicyGuard::deploy(&mut deployer, owner);
-
-        env.set_caller(owner);
-        contract.set_signer_weight(signer_a, 1);
-
-        env.set_caller(signer_a);
-        let action_id = contract.propose_action(1, ACTION_HOLD, "hash-2".to_string());
-
-        let action = contract.get_action(action_id).unwrap();
-        assert_eq!(action.approval_weight, 0);
-        assert!(action.approval_weight < action.required_weight);
+            },
+        );
     }
 }

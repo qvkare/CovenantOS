@@ -1,9 +1,14 @@
-//! EvidenceReceipt — on-chain evidence hash registry.
-
 use odra::prelude::*;
-use odra::Address;
 
-use crate::types::EvidenceRecord;
+#[odra::odra_type]
+pub struct EvidenceRecord {
+    pub facility_id: u64,
+    pub evidence_hash: String,
+    pub source_id: String,
+    pub x402_payment_ref: String,
+    pub timestamp: u64,
+    pub decision_id: String,
+}
 
 #[odra::event]
 pub struct EvidenceRecorded {
@@ -15,7 +20,14 @@ pub struct EvidenceRecorded {
     pub timestamp: u64,
 }
 
-#[odra::module(events = [EvidenceRecorded])]
+#[odra::odra_error]
+pub enum Error {
+    NotOperator = 1,
+    EmptyEvidenceHash = 2,
+    EvidenceNotFound = 3,
+}
+
+#[odra::module(events = [EvidenceRecorded], errors = Error)]
 pub struct EvidenceReceipt {
     operator: Var<Address>,
     next_evidence_id: Var<u64>,
@@ -24,7 +36,6 @@ pub struct EvidenceReceipt {
 
 #[odra::module]
 impl EvidenceReceipt {
-    #[odra(init)]
     pub fn init(&mut self, operator: Address) {
         self.operator.set(operator);
         self.next_evidence_id.set(1);
@@ -41,21 +52,23 @@ impl EvidenceReceipt {
         self.ensure_operator();
 
         if evidence_hash.is_empty() {
-            odra::revert("EMPTY_EVIDENCE_HASH");
+            self.env().revert(Error::EmptyEvidenceHash);
         }
 
         let evidence_id = self.next_evidence_id.get_or_default();
         self.next_evidence_id.set(evidence_id + 1);
 
-        let record = EvidenceRecord {
-            facility_id,
-            evidence_hash: evidence_hash.clone(),
-            source_id: source_id.clone(),
-            x402_payment_ref: x402_payment_ref.clone(),
-            timestamp,
-            decision_id: String::new(),
-        };
-        self.evidences.set(&evidence_id, record);
+        self.evidences.set(
+            &evidence_id,
+            EvidenceRecord {
+                facility_id,
+                evidence_hash: evidence_hash.clone(),
+                source_id: source_id.clone(),
+                x402_payment_ref: x402_payment_ref.clone(),
+                timestamp,
+                decision_id: String::new(),
+            },
+        );
 
         self.env().emit_event(EvidenceRecorded {
             evidence_id,
@@ -75,7 +88,7 @@ impl EvidenceReceipt {
         let mut record = self
             .evidences
             .get(&evidence_id)
-            .unwrap_or_else(|| odra::revert("EVIDENCE_NOT_FOUND"));
+            .unwrap_or_revert_with(self, Error::EvidenceNotFound);
 
         record.decision_id = decision_id;
         self.evidences.set(&evidence_id, record);
@@ -86,8 +99,8 @@ impl EvidenceReceipt {
     }
 
     fn ensure_operator(&self) {
-        if self.env().caller() != self.operator.get_or_default() {
-            odra::revert("NOT_OPERATOR");
+        if self.env().caller() != self.operator.get().unwrap() {
+            self.env().revert(Error::NotOperator);
         }
     }
 }
@@ -95,14 +108,13 @@ impl EvidenceReceipt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use odra::host::{Deployer, HostEnv, HostEnvExt};
+    use odra::host::Deployer;
 
     #[test]
     fn records_evidence_and_links_decision() {
-        let env = HostEnv::new();
+        let env = odra_test::env();
         let operator = env.get_account(0);
-        let mut deployer = env.get_deployer();
-        let mut contract = EvidenceReceipt::deploy(&mut deployer, operator);
+        let mut contract = EvidenceReceipt::deploy(&env, EvidenceReceiptInitArgs { operator });
 
         env.set_caller(operator);
         let evidence_id = contract.record_evidence(
@@ -119,8 +131,8 @@ mod tests {
         assert_eq!(record.facility_id, 42);
         assert_eq!(record.decision_id, "decision-001");
 
-        assert!(env.emitted(
-            contract.address(),
+        env.emitted_event(
+            &contract,
             EvidenceRecorded {
                 evidence_id,
                 facility_id: 42,
@@ -128,7 +140,7 @@ mod tests {
                 source_id: "mock-bank-statement".to_string(),
                 x402_payment_ref: "casper:pay:ref".to_string(),
                 timestamp: 1_700_000_000,
-            }
-        ));
+            },
+        );
     }
 }

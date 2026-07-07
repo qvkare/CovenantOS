@@ -1,8 +1,8 @@
 [[contracts]]
-fqn = "covenantos_contracts::PolicyGuard"
+fqn = "policy_guard::PolicyGuard"
 
 [[contracts]]
-fqn = "covenantos_contracts::EvidenceReceipt"
+fqn = "evidence_receipt::EvidenceReceipt"
 
 [[contracts]]
-fqn = "covenantos_contracts::FacilityVault"
+fqn = "facility_vault::FacilityVault"
