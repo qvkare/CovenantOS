@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev -w backend",
+    "dev:web": "npm run dev -w @covenantos/web",
     "dev:mock": "npm run dev -w mock-provider",
     "build": "npm run build -ws --if-present",
     "test": "npm run test -ws --if-present",

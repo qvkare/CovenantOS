@@ -4,6 +4,6 @@ export async function registerHealthRoutes(app: FastifyInstance) {
   app.get("/health", async () => ({
     status: "ok",
     service: "covenantos-backend",
-    phase: 1,
+    phase: 3,
   }));
 }

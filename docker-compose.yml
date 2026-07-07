@@ -42,5 +42,18 @@ services:
       X402_PAYMENT_ADDRESS: 01mockprovider000000000000000000000000000000
       X402_PAYMENT_AMOUNT_MOTES: "1000000"
 
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_MSW: "false"
+      NEXT_PUBLIC_CSPRCLICK_APP_ID: csprclick-template
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
