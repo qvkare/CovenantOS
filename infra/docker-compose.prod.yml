@@ -37,6 +37,8 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:3001:3001"
+    volumes:
+      - ../keys:/app/keys:ro
     environment:
       PORT: 3001
       HOST: 0.0.0.0
@@ -44,9 +46,12 @@ services:
       PROVIDER_URL: http://provider:3002
       CASPER_NODE_URL: https://node.testnet.casper.network/rpc
       CASPER_CHAIN_NAME: casper-test
+      CASPER_SECRET_KEY_PATH: ./keys/deployer_secret_key.pem
+      CASPER_PUBLIC_KEY: ${CASPER_PUBLIC_KEY:-}
       CSPR_CLOUD_AUTH_TOKEN: ${CSPR_CLOUD_AUTH_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
+      X402_BUDGET_CAP_MOTES: ${X402_BUDGET_CAP_MOTES:-10000000000}
       DEMO_MODE: "true"
     depends_on:
       postgres:
