@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ActionType } from "@covenantos/shared";
-import { Args, CLValue, PublicKey, type CasperArgs } from "./casper-sdk.js";
+import { Args, CLValue, PublicKey, Key, type CasperArgs } from "./casper-sdk.js";
 import { waitForOnChainActionId } from "./action-id-resolver.js";
 import { ContractRegistry } from "./contracts.js";
 import { ACTION_TYPE_ONCHAIN, toFacilityU64 } from "./facility-id.js";
@@ -138,8 +138,9 @@ export class ChainWriter {
     }
 
     const publicKey = this.submitter.signerPublicKey;
+    const signerKey = Key.newKey(publicKey.accountHash().toPrefixedString());
     const args = Args.fromMap({
-      signer: CLValue.newCLPublicKey(publicKey),
+      signer: CLValue.newCLKey(signerKey),
       weight: CLValue.newCLUint8(weight),
     });
 

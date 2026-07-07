@@ -6,6 +6,7 @@ export const {
   CLValue,
   ContractCallBuilder,
   HttpHandler,
+  Key,
   KeyAlgorithm,
   NativeTransferBuilder,
   PrivateKey,
