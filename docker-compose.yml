@@ -27,6 +27,7 @@ services:
       PROVIDER_URL: http://provider:3002
       CASPER_NODE_URL: https://node.testnet.casper.network/rpc
       CASPER_CHAIN_NAME: casper-test
+      CSPR_CLOUD_AUTH_TOKEN: ${CSPR_CLOUD_AUTH_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy

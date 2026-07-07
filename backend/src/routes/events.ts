@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ChainEvent } from "@covenantos/shared";
-import { getDemoStore } from "@covenantos/shared";
+import { eventBus } from "../events/bus.js";
+import { queryChainEvents } from "../db/index.js";
 
 const SSE_CLIENTS = new Set<FastifyReply>();
 
@@ -11,9 +12,25 @@ function broadcast(event: ChainEvent) {
   }
 }
 
-getDemoStore().subscribe(broadcast);
+eventBus.subscribe(broadcast);
 
 export async function registerEventRoutes(app: FastifyInstance) {
+  app.get("/events", async (request, reply) => {
+    const query = request.query as {
+      limit?: string;
+      facilityId?: string;
+      since?: string;
+    };
+
+    const events = await queryChainEvents({
+      limit: query.limit ? Number(query.limit) : 50,
+      facilityId: query.facilityId,
+      since: query.since,
+    });
+
+    return reply.send({ events });
+  });
+
   app.get("/events/stream", async (request: FastifyRequest, reply: FastifyReply) => {
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",

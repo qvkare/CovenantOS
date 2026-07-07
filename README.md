@@ -8,7 +8,7 @@ CovenantOS reads facility documents, extracts covenants, collects evidence via p
 
 Early development — built for the [Casper Agentic Buildathon 2026](https://dorahacks.io/hackathon/casper-agentic-buildathon/detail).
 
-**Current phase:** Covenant + Treasury agents + approval flow (Phase 6)
+**Current phase:** Indexer + SSE (Phase 7)
 
 ## Monorepo
 
@@ -66,6 +66,8 @@ Covenant check: `POST /facilities/:id/check` — re-evaluates the latest stored 
 
 Actions: `GET /actions`, `POST /actions/:id/approve` (auto-executes via Treasury when threshold met), `POST /actions/:id/execute`.
 
+Live events: `GET /events/stream` (SSE). History: `GET /events?limit=50&facilityId=...`. With `CSPR_CLOUD_AUTH_TOKEN` set, the backend indexes on-chain contract events into Postgres and rebroadcasts them on the same stream.
+
 ## Implementation phases
 
 1. Monorepo scaffold + docker-compose + CI ✓
@@ -74,7 +76,7 @@ Actions: `GET /actions`, `POST /actions/:id/approve` (auto-executes via Treasury
 4. Document Agent + golden-file tests ✓
 5. x402 gateway + data provider ✓
 6. Covenant + Treasury agents + approval flow ✓
-7. Indexer + SSE
+7. Indexer + SSE ✓
 8. Security hardening, seed demo, README polish
 
 ## Stack
