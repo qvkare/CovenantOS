@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ActionType } from "@covenantos/shared";
 import { Args, CLValue, PublicKey, type CasperArgs } from "./casper-sdk.js";
+import { waitForOnChainActionId } from "./action-id-resolver.js";
 import { ContractRegistry } from "./contracts.js";
 import { ACTION_TYPE_ONCHAIN, toFacilityU64 } from "./facility-id.js";
 import { ChainTxSubmitter, parseProposedActionId } from "./tx.js";
@@ -114,6 +115,62 @@ export class ChainWriter {
     };
   }
 
+  /** Resolve numeric PolicyGuard action id from indexer if execution effects missed it. */
+  async resolveOnChainActionId(input: {
+    proposeTxHash: string;
+    paramsHash?: string;
+    knownActionId?: string;
+  }): Promise<string | undefined> {
+    if (input.knownActionId && /^\d+$/.test(input.knownActionId)) {
+      return input.knownActionId;
+    }
+
+    return waitForOnChainActionId({
+      proposeTxHash: input.proposeTxHash,
+      paramsHash: input.paramsHash,
+      timeoutMs: 12_000,
+    });
+  }
+
+  async ensurePolicyGuardSignerWeight(weight: number): Promise<string | undefined> {
+    if (!this.registry.isDeployed("policyGuard") || !this.submitter) {
+      return undefined;
+    }
+
+    const publicKey = this.submitter.signerPublicKey;
+    const args = Args.fromMap({
+      signer: CLValue.newCLPublicKey(publicKey),
+      weight: CLValue.newCLUint8(weight),
+    });
+
+    const { txHash } = await this.submitter.submit({
+      contract: "policyGuard",
+      entryPoint: "set_signer_weight",
+      args,
+    });
+
+    return txHash;
+  }
+
+  async seedDemoVaultBalance(facilityId: string, amountMotes: string): Promise<string | undefined> {
+    if (!this.registry.isDeployed("facilityVault") || !this.submitter) {
+      return undefined;
+    }
+
+    const args = Args.fromMap({
+      facility_id: CLValue.newCLUint64(toFacilityU64(facilityId)),
+      amount: CLValue.newCLUInt512(amountMotes),
+    });
+
+    const { txHash } = await this.submitter.submit({
+      contract: "facilityVault",
+      entryPoint: "demo_seed_balance",
+      args,
+    });
+
+    return txHash;
+  }
+
   async approveAction(onchainActionId: string): Promise<string | undefined> {
     if (!this.registry.isDeployed("policyGuard")) {
       return undefined;
@@ -175,11 +232,10 @@ export class ChainWriter {
       return this.mockTx("vault", input.actionType, input.facilityId);
     }
 
-    // The vault requires the numeric PolicyGuard action id. When it could not
-    // be resolved from the propose_action result, record the execution off-chain
-    // instead of reverting the whole approval flow.
     if (!/^\d+$/.test(input.onchainActionId)) {
-      return this.mockTx("vault", input.actionType, input.facilityId);
+      throw new Error(
+        "On-chain PolicyGuard action id is required for vault execution (wait for ActionProposed indexing)",
+      );
     }
 
     const facilityU64 = toFacilityU64(input.facilityId);

@@ -36,14 +36,42 @@ export function tryLoadSigner(): CasperPrivateKey | undefined {
 }
 
 export function parseProposedActionId(result: CasperWaitResult): string | undefined {
+  const fromEffects = parseProposedActionIdFromEffects(result);
+  if (fromEffects) return fromEffects;
+
   const raw = result.rawJSON;
   if (!raw) return undefined;
 
-  // casper-js-sdk exposes rawJSON as a parsed object here, but older paths
-  // return a JSON string — handle both without throwing.
+  // Fallback: scan serialized execution payload for Odra event fields.
   const text = typeof raw === "string" ? raw : JSON.stringify(raw);
   const match = text.match(/"action_id"\s*:\s*"?(\d+)"?/);
   return match?.[1];
+}
+
+/** Read PolicyGuard next_action_id increment from execution effects (action_id = next - 1). */
+export function parseProposedActionIdFromEffects(result: CasperWaitResult): string | undefined {
+  const raw = result.rawJSON;
+  if (!raw) return undefined;
+
+  const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+  const effects = parsed?.execution_info?.execution_result?.Version2?.effects;
+  if (!Array.isArray(effects)) return undefined;
+
+  for (const effect of effects) {
+    const kind = effect?.kind;
+    if (!kind || typeof kind !== "object") continue;
+
+    const write = "Write" in kind ? kind.Write : undefined;
+    const cl = write?.CLValue ?? write;
+    if (!cl || (cl.cl_type !== "U32" && cl.cl_type !== "U64")) continue;
+
+    const nextId = BigInt(String(cl.parsed ?? "0"));
+    if (nextId > 1n) {
+      return String(nextId - 1n);
+    }
+  }
+
+  return undefined;
 }
 
 export class ChainTxSubmitter {
@@ -67,6 +95,10 @@ export class ChainTxSubmitter {
       return undefined;
     }
     return new ChainTxSubmitter(registry, privateKey);
+  }
+
+  get signerPublicKey() {
+    return this.privateKey.publicKey;
   }
 
   async submit(input: ContractCallInput): Promise<SubmittedContractCall> {

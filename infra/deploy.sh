@@ -26,6 +26,8 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
+curl -sf -X POST http://127.0.0.1:3001/chain/bootstrap >/dev/null || true
+
 curl -sf http://127.0.0.1:3001/health | head -c 200 || true
 echo
 docker compose -f infra/docker-compose.prod.yml ps

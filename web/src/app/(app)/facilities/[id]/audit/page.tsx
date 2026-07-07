@@ -157,6 +157,13 @@ export default function AuditTrailPage() {
                   {entry.executionTx ? (
                     <TxLink hash={entry.executionTx} label="execution" />
                   ) : null}
+                  {entry.approvalTxs.length > 0 ? (
+                    <div className="flex flex-wrap gap-3">
+                      {entry.approvalTxs.map((tx) => (
+                        <TxLink key={tx} hash={tx} label="approval" />
+                      ))}
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </div>

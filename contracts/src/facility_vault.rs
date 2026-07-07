@@ -41,6 +41,7 @@ pub enum Error {
     InsufficientBalance = 3,
     InsufficientHeldBalance = 4,
     FacilityPaused = 5,
+    NotOwner = 6,
 }
 
 #[odra::module(
@@ -148,6 +149,27 @@ impl FacilityVault {
 
     pub fn reserve_of(&self, facility_id: u64) -> U512 {
         self.reserve.get_or_default(&facility_id)
+    }
+
+    /// Testnet demo helper: owner credits a facility balance without a payable transfer.
+    /// Redeploy contracts after pulling this entry point before production use.
+    pub fn demo_seed_balance(&mut self, facility_id: u64, amount: U512) {
+        self.ensure_owner();
+        if amount.is_zero() {
+            self.env().revert(Error::ZeroDeposit);
+        }
+        self.balances.add(&facility_id, amount);
+        self.env().emit_event(Deposited {
+            facility_id,
+            amount,
+            depositor: self.env().caller(),
+        });
+    }
+
+    fn ensure_owner(&self) {
+        if self.env().caller() != self.owner.get().unwrap() {
+            self.env().revert(Error::NotOwner);
+        }
     }
 
     fn policy(&self) -> PolicyGuardContractRef {

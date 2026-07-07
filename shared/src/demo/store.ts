@@ -364,6 +364,45 @@ export class DemoStore {
     return action;
   }
 
+  bindOnChainActionId(proposeTxHash: string, onchainActionId: string): void {
+    const action = this.actions.find((a) => a.proposeTxHash === proposeTxHash);
+    if (!action || action.onchainActionId) return;
+    action.onchainActionId = onchainActionId;
+    action.updatedAt = this.now();
+  }
+
+  recordChainVaultExecution(
+    facilityId: string,
+    type: "Held" | "Released",
+    txHash: string,
+    amount?: string,
+  ): void {
+    const escrow = this.escrowByFacility[facilityId];
+    if (!escrow) return;
+
+    const now = this.now();
+    const holdAmount = amount ?? "1200000000000";
+
+    if (type === "Held") {
+      escrow.held = holdAmount;
+      escrow.recentTxs = escrow.recentTxs.filter((tx) => tx.txHash !== txHash);
+      escrow.recentTxs.unshift({ type: "Held", amount: holdAmount, txHash, at: now });
+    }
+
+    if (type === "Released") {
+      escrow.held = "0";
+      escrow.released = holdAmount;
+      escrow.recentTxs = escrow.recentTxs.filter((tx) => tx.txHash !== txHash);
+      escrow.recentTxs.unshift({ type: "Released", amount: holdAmount, txHash, at: now });
+    }
+
+    const audit = this.auditByFacility[facilityId] ?? [];
+    const holdAudit = audit.find((e) => e.actionType === "hold" || e.actionType === "release");
+    if (holdAudit) {
+      holdAudit.executionTx = txHash;
+    }
+  }
+
   recordEvidence(
     facilityId: string,
     input: {

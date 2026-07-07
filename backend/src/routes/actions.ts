@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { getAppStore } from "../store/persisting-store.js";
 import { TreasuryAgent } from "../agents/treasury-agent.js";
+import { ensureChainDemoReady } from "../chain/bootstrap.js";
 import { ChainWriter } from "../chain/writer.js";
 import { approveActionSchema, parseBody } from "./schemas.js";
 
@@ -39,10 +40,24 @@ export async function registerActionRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: "Action not found or not pending" });
     }
 
+    await ensureChainDemoReady(chainWriter);
+
+    let onchainActionId = pending.onchainActionId;
+    if ((!onchainActionId || !/^\d+$/.test(onchainActionId)) && pending.proposeTxHash) {
+      onchainActionId = await chainWriter.resolveOnChainActionId({
+        proposeTxHash: pending.proposeTxHash,
+        paramsHash: pending.paramsHash,
+        knownActionId: pending.onchainActionId,
+      });
+      if (onchainActionId) {
+        getAppStore().setActionChainIds(id, { onchainActionId });
+      }
+    }
+
     let onchainApproveTx: string | undefined;
-    if (pending.onchainActionId && chainWriter.canWriteOnChain()) {
+    if (onchainActionId && chainWriter.canWriteOnChain()) {
       try {
-        onchainApproveTx = await chainWriter.approveAction(pending.onchainActionId);
+        onchainApproveTx = await chainWriter.approveAction(onchainActionId);
       } catch (error) {
         const message = error instanceof Error ? error.message : "On-chain approval failed";
         return reply.status(422).send({ error: message, action: pending });

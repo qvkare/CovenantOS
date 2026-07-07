@@ -98,9 +98,18 @@ export class CovenantAgent {
         paramsHash: action.paramsHash ?? action.id,
       });
       if (propose) {
+        let onchainActionId = propose.actionId;
+        if (!onchainActionId && propose.txHash) {
+          onchainActionId = await this.chainWriter.resolveOnChainActionId({
+            proposeTxHash: propose.txHash,
+            paramsHash: action.paramsHash ?? action.id,
+            knownActionId: propose.actionId,
+          });
+        }
+
         getAppStore().setActionChainIds(action.id, {
           proposeTxHash: propose.txHash,
-          onchainActionId: propose.actionId,
+          onchainActionId,
         });
       }
     } catch (error) {

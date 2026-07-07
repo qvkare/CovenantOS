@@ -134,6 +134,8 @@ Document extraction: `POST /facilities/extract` (multipart upload; requires `ANT
 
 Store the deployer key in `keys/deployer_secret_key.pem` or set `CASPER_SECRET_KEY_HEX` in `.env` (never commit secrets).
 
+After pulling contract changes that add `demo_seed_balance`, redeploy so vault holds can execute on-chain:
+
 ```bash
 npm run chain:wallet -w backend
 cd contracts

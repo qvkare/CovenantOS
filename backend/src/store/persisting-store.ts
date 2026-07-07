@@ -103,6 +103,19 @@ export class PersistingStore {
     return result;
   }
 
+  bindOnChainActionId(...args: Parameters<DemoStoreApi["bindOnChainActionId"]>) {
+    this.inner.bindOnChainActionId(...args);
+    const action = this.inner.listActions().find((a) => a.proposeTxHash === args[0]);
+    if (action) void this.persistAction(action);
+  }
+
+  recordChainVaultExecution(...args: Parameters<DemoStoreApi["recordChainVaultExecution"]>) {
+    this.inner.recordChainVaultExecution(...args);
+    void this.persistFacilityState(args[0]);
+    const audit = this.inner.getAudit(args[0]).find((e) => e.actionType === "hold" || e.actionType === "release");
+    if (audit) void this.persistAudit(audit);
+  }
+
   approveAction(...args: Parameters<DemoStoreApi["approveAction"]>) {
     const result = this.inner.approveAction(...args);
     if (result) {

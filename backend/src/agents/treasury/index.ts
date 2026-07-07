@@ -37,18 +37,35 @@ export class TreasuryAgent {
 
     this.validateExecution(action);
 
-    const onchainActionId = action.onchainActionId ?? action.paramsHash ?? actionId;
+    let onchainActionId = action.onchainActionId;
+    if ((!onchainActionId || !/^\d+$/.test(onchainActionId)) && action.proposeTxHash) {
+      onchainActionId = await this.chainWriter.resolveOnChainActionId({
+        proposeTxHash: action.proposeTxHash,
+        paramsHash: action.paramsHash,
+        knownActionId: action.onchainActionId,
+      });
+      if (onchainActionId) {
+        store.setActionChainIds(actionId, { onchainActionId });
+      }
+    }
+
+    if (this.chainWriter.canWriteOnChain() && (!onchainActionId || !/^\d+$/.test(onchainActionId))) {
+      throw new Error("On-chain action id is not available yet — wait a few seconds and retry");
+    }
+
     const facility = store.getFacility(action.facilityId);
 
-    const chainTx = await this.chainWriter.executeVaultAction({
-      actionType: action.type,
-      facilityId: action.facilityId,
-      onchainActionId,
-      recipientPublicKeyHex:
-        action.type === "release"
-          ? (tryLoadSigner()?.publicKey.toHex() ?? facility?.facility.issuer)
-          : undefined,
-    });
+    const chainTx = onchainActionId
+      ? await this.chainWriter.executeVaultAction({
+          actionType: action.type,
+          facilityId: action.facilityId,
+          onchainActionId,
+          recipientPublicKeyHex:
+            action.type === "release"
+              ? (tryLoadSigner()?.publicKey.toHex() ?? facility?.facility.issuer)
+              : undefined,
+        })
+      : undefined;
 
     const executionTx =
       chainTx ??

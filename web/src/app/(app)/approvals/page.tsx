@@ -146,6 +146,19 @@ export default function ApprovalsPage() {
                     <HashBlock value={action.paramsHash} />
                   </div>
                 ) : null}
+                <div className="flex flex-wrap gap-3 text-xs">
+                  {action.proposeTxHash ? (
+                    <TxLink hash={action.proposeTxHash} label="propose" />
+                  ) : null}
+                  {action.onchainActionId ? (
+                    <span className="font-mono text-white/40">
+                      on-chain action #{action.onchainActionId}
+                    </span>
+                  ) : null}
+                  {action.executionTxHash ? (
+                    <TxLink hash={action.executionTxHash} label="execution" />
+                  ) : null}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={() => approveMutation.mutate(action)}
@@ -161,9 +174,6 @@ export default function ApprovalsPage() {
                     Reject
                   </Button>
                 </div>
-                {action.onchainActionId ? (
-                  <TxLink hash={action.onchainActionId} label="action" />
-                ) : null}
               </CardContent>
             </Card>
           ))}
