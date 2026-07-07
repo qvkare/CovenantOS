@@ -262,4 +262,26 @@ mod tests {
         assert_eq!(vault.balance_of(1), deposit_amount - reserve_amount);
         assert_eq!(vault.reserve_of(1), reserve_amount);
     }
+
+    #[test]
+    fn double_hold_with_same_action_reverts() {
+        let env = odra_test::env();
+        let (mut policy, mut vault, signer_a, signer_b, depositor) = setup(&env);
+
+        let deposit_amount = U512::from(1_000_000_000_000u64);
+        env.set_caller(depositor);
+        vault.with_tokens(deposit_amount).deposit(1);
+
+        env.set_caller(signer_a);
+        let hold_action = policy.propose_action(1, ACTION_HOLD, "hold-hash".to_string());
+        env.set_caller(signer_b);
+        policy.approve_action(hold_action);
+
+        let hold_amount = U512::from(300_000_000_000u64);
+        env.set_caller(depositor);
+        vault.hold(1, hold_amount, hold_action);
+
+        let second = vault.try_hold(1, hold_amount, hold_action);
+        assert!(second.is_err());
+    }
 }

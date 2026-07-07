@@ -1,7 +1,8 @@
 import type { ProposedAction } from "@covenantos/shared";
-import { getDemoStore } from "@covenantos/shared";
+import { getAppStore } from "../../store/persisting-store.js";
 import { defaultAgentPolicy } from "../../policy/runtime-policy.js";
 import { ChainWriter } from "../../chain/writer.js";
+import { tryLoadSigner } from "../../chain/tx.js";
 
 export type TreasuryExecutionResult = {
   action: ProposedAction;
@@ -30,17 +31,24 @@ export class TreasuryAgent {
   }
 
   async execute(actionId: string): Promise<TreasuryExecutionResult | null> {
-    const store = getDemoStore();
+    const store = getAppStore();
     const action = store.getAction(actionId);
     if (!action) return null;
 
     this.validateExecution(action);
 
-    const chainTx = await this.chainWriter.executeVaultAction(
-      action.type,
-      action.facilityId,
-      action.onchainActionId ?? action.paramsHash ?? actionId,
-    );
+    const onchainActionId = action.onchainActionId ?? action.paramsHash ?? actionId;
+    const facility = store.getFacility(action.facilityId);
+
+    const chainTx = await this.chainWriter.executeVaultAction({
+      actionType: action.type,
+      facilityId: action.facilityId,
+      onchainActionId,
+      recipientPublicKeyHex:
+        action.type === "release"
+          ? (tryLoadSigner()?.publicKey.toHex() ?? facility?.facility.issuer)
+          : undefined,
+    });
 
     const executionTx =
       chainTx ??

@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
 import { ZodError } from "zod";
-import { DEMO_FACILITY_IDS, getDemoStore } from "@covenantos/shared";
+import { DEMO_FACILITY_IDS } from "@covenantos/shared";
+import { getAppStore } from "../store/persisting-store.js";
 import { DocumentAgent } from "../agents/document-agent.js";
 import { CovenantAgent } from "../agents/covenant-agent.js";
 import { X402Gateway } from "../x402/index.js";
@@ -44,13 +45,13 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
   await app.register(multipart);
 
   app.get("/facilities", async (_request, reply) => {
-    const store = getDemoStore();
+    const store = getAppStore();
     return reply.send({ facilities: store.listFacilities() });
   });
 
   app.get("/facilities/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const detail = getDemoStore().getFacility(id);
+    const detail = getAppStore().getFacility(id);
     if (!detail) {
       return reply.status(404).send({ error: "Facility not found" });
     }
@@ -59,20 +60,20 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
 
   app.get("/facilities/:id/covenants", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const detail = getDemoStore().getFacility(id);
+    const detail = getAppStore().getFacility(id);
     if (!detail) {
       return reply.status(404).send({ error: "Facility not found" });
     }
-    return reply.send({ covenants: getDemoStore().getCovenants(id) });
+    return reply.send({ covenants: getAppStore().getCovenants(id) });
   });
 
   app.get("/facilities/:id/audit", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const detail = getDemoStore().getFacility(id);
+    const detail = getAppStore().getFacility(id);
     if (!detail) {
       return reply.status(404).send({ error: "Facility not found" });
     }
-    return reply.send({ entries: getDemoStore().getAudit(id) });
+    return reply.send({ entries: getAppStore().getAudit(id) });
   });
 
   app.post("/facilities/:id/check", async (request, reply) => {
@@ -88,7 +89,7 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
       throw error;
     }
 
-    const facility = getDemoStore().getFacility(id);
+    const facility = getAppStore().getFacility(id);
     if (!facility) {
       return reply.status(404).send({ error: "Facility not found" });
     }
@@ -126,11 +127,11 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
       throw error;
     }
 
-    const result = getDemoStore().registerFacility({
+    const result = getAppStore().registerFacility({
       name: body.name,
       issuer: body.issuer,
       covenants: body.covenants as unknown as Parameters<
-        ReturnType<typeof getDemoStore>["registerFacility"]
+        ReturnType<typeof getAppStore>["registerFacility"]
       >[0]["covenants"],
     });
     return reply.send(result);
@@ -139,7 +140,7 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
   app.put("/covenants/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const patch = request.body as Record<string, unknown>;
-    const updated = getDemoStore().updateCovenant(id, patch);
+    const updated = getAppStore().updateCovenant(id, patch);
     if (!updated) {
       return reply.status(404).send({ error: "Covenant not found" });
     }

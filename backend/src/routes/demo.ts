@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { resetDemoStore } from "@covenantos/shared";
 import { getPool } from "../db/index.js";
+import { ensureAppStoreSeeded, resetAppStorePersistence } from "../store/persisting-store.js";
 
 function isDemoModeEnabled(): boolean {
   return process.env.DEMO_MODE !== "false";
@@ -28,7 +29,8 @@ export async function registerDemoRoutes(app: FastifyInstance) {
 
     const pool = getPool();
     if (pool) {
-      await pool.query("TRUNCATE TABLE chain_events");
+      await resetAppStorePersistence();
+      await ensureAppStoreSeeded();
     }
 
     return reply.send({

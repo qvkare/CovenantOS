@@ -15,6 +15,8 @@ export interface ProposedAction {
   evidenceIds: string[];
   proposedByAgent: string;
   onchainActionId?: string;
+  proposeTxHash?: string;
+  executionTxHash?: string;
   paramsHash?: string;
   reasoningSummary?: string;
   requiredApprovalWeight: number;

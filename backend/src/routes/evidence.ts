@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { ZodError } from "zod";
-import { getDemoStore } from "@covenantos/shared";
+import { getAppStore } from "../store/persisting-store.js";
 import { CovenantAgent } from "../agents/covenant-agent.js";
 import { X402Gateway } from "../x402/index.js";
 import { evidenceBodySchema, parseBody } from "./schemas.js";
@@ -33,7 +33,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance) {
 
   app.post("/facilities/:id/evidence", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const facility = getDemoStore().getFacility(id);
+    const facility = getAppStore().getFacility(id);
     if (!facility) {
       return reply.status(404).send({ error: "Facility not found" });
     }

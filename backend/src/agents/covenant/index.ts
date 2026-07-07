@@ -2,17 +2,17 @@ import type { EvidenceProviderResponse } from "@covenantos/shared";
 import {
   bankPayloadFromEvidence,
   evaluateCovenants,
-  getDemoStore,
-  type CovenantEvaluation,
   type CovenantCheckResult,
+  type CovenantEvaluation,
 } from "@covenantos/shared";
+import { getAppStore } from "../../store/persisting-store.js";
 import type { ChainWriter } from "../../chain/writer.js";
 import { ChainWriter as DefaultChainWriter } from "../../chain/writer.js";
 import { validateEvidencePayload } from "../../security/evidence-guard.js";
 import type { EvidenceFetchResult } from "../../x402/gateway.js";
 
-/** Require at least one recorded evidence item before proposing hold (human approval follows). */
-export const MIN_EVIDENCE_FOR_PROPOSE = 1;
+/** Require at least two independent evidence items before proposing hold. */
+export const MIN_EVIDENCE_FOR_PROPOSE = 2;
 
 export type ProcessEvidenceInput = {
   facilityId: string;
@@ -25,7 +25,7 @@ export class CovenantAgent {
   constructor(private readonly chainWriter: ChainWriter = new DefaultChainWriter()) {}
 
   async processEvidence(input: ProcessEvidenceInput): Promise<CovenantCheckResult | null> {
-    const store = getDemoStore();
+    const store = getAppStore();
     const facility = store.getFacility(input.facilityId);
     if (!facility) return null;
 
@@ -41,7 +41,12 @@ export class CovenantAgent {
 
     const receiptTx =
       input.onchainReceiptTx ??
-      (await this.chainWriter.recordEvidence(input.data.payloadHash, input.facilityId));
+      (await this.chainWriter.recordEvidence({
+        facilityId: input.facilityId,
+        payloadHash: input.data.payloadHash,
+        sourceId: input.data.sourceId,
+        x402PaymentRef: input.paymentRef ?? "",
+      }));
 
     const evidence = store.recordEvidence(input.facilityId, {
       sourceId: input.data.sourceId,
@@ -66,19 +71,31 @@ export class CovenantAgent {
     const result = store.applyCovenantEvaluation(input.facilityId, evaluation, evidence);
 
     if (result.status === "breach" && result.action) {
-      await this.chainWriter.proposeAction({
+      const propose = await this.chainWriter.proposeAction({
         facilityId: input.facilityId,
         actionType: "hold",
         paramsHash: result.action.paramsHash ?? result.action.id,
       });
+      if (propose) {
+        store.setActionChainIds(result.action.id, {
+          proposeTxHash: propose.txHash,
+          onchainActionId: propose.actionId,
+        });
+      }
     }
 
-    if (result.status === "release_pending") {
-      await this.chainWriter.proposeAction({
+    if (result.status === "release_pending" && result.action) {
+      const propose = await this.chainWriter.proposeAction({
         facilityId: input.facilityId,
         actionType: "release",
         paramsHash: result.action.paramsHash ?? result.action.id,
       });
+      if (propose) {
+        store.setActionChainIds(result.action.id, {
+          proposeTxHash: propose.txHash,
+          onchainActionId: propose.actionId,
+        });
+      }
     }
 
     return result;
@@ -88,6 +105,13 @@ export class CovenantAgent {
     facilityId: string,
     fetchResult: EvidenceFetchResult,
   ): Promise<CovenantCheckResult | null> {
+    const store = getAppStore();
+    void store.persistX402Payment({
+      ...fetchResult.payment,
+      facilityId,
+      createdAt: fetchResult.payment.createdAt ?? new Date().toISOString(),
+    });
+
     return this.processEvidence({
       facilityId,
       data: fetchResult.data,
@@ -97,6 +121,6 @@ export class CovenantAgent {
   }
 
   runCheck(facilityId: string): CovenantCheckResult | null {
-    return getDemoStore().evaluateLatestEvidence(facilityId);
+    return getAppStore().evaluateLatestEvidence(facilityId);
   }
 }

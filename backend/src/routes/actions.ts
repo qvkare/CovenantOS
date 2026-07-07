@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { ZodError } from "zod";
-import { getDemoStore } from "@covenantos/shared";
+import { getAppStore } from "../store/persisting-store.js";
 import { TreasuryAgent } from "../agents/treasury-agent.js";
+import { ChainWriter } from "../chain/writer.js";
 import { approveActionSchema, parseBody } from "./schemas.js";
 
 const treasuryAgent = new TreasuryAgent();
+const chainWriter = new ChainWriter();
 
 function validationError(error: unknown) {
   if (error instanceof ZodError) {
@@ -16,7 +18,7 @@ function validationError(error: unknown) {
 export async function registerActionRoutes(app: FastifyInstance) {
   app.get("/actions", async (request, reply) => {
     const status = (request.query as { status?: string }).status;
-    const actions = getDemoStore().listActions(status);
+    const actions = getAppStore().listActions(status);
     return reply.send({ actions });
   });
 
@@ -32,7 +34,25 @@ export async function registerActionRoutes(app: FastifyInstance) {
       throw error;
     }
 
-    const action = getDemoStore().approveAction(id, body);
+    const pending = getAppStore().getAction(id);
+    if (!pending || pending.status === "executed" || pending.status === "rejected") {
+      return reply.status(404).send({ error: "Action not found or not pending" });
+    }
+
+    let onchainApproveTx: string | undefined;
+    if (pending.onchainActionId && chainWriter.canWriteOnChain()) {
+      try {
+        onchainApproveTx = await chainWriter.approveAction(pending.onchainActionId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "On-chain approval failed";
+        return reply.status(422).send({ error: message, action: pending });
+      }
+    }
+
+    const action = getAppStore().approveAction(id, {
+      approver: body.approver,
+      txHash: onchainApproveTx ?? body.txHash,
+    });
     if (!action) {
       return reply.status(404).send({ error: "Action not found or not pending" });
     }
@@ -69,7 +89,7 @@ export async function registerActionRoutes(app: FastifyInstance) {
 
   app.post("/actions/:id/reject", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const action = getDemoStore().rejectAction(id);
+    const action = getAppStore().rejectAction(id);
     if (!action) {
       return reply.status(404).send({ error: "Action not found" });
     }

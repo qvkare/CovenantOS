@@ -55,23 +55,36 @@ describe("evaluateCovenants", () => {
 });
 
 describe("CovenantAgent", () => {
-  it("records evidence and proposes hold on breach", async () => {
+  it("records evidence and proposes hold on breach after two evidence items", async () => {
     resetDemoStore();
     const agent = new CovenantAgent({
       recordEvidence: async () => "mock-receipt-tx",
-      proposeAction: async () => "mock-propose-tx",
+      proposeAction: async () => ({ txHash: "mock-propose-tx", actionId: "42" }),
       executeVaultAction: async () => undefined,
       isReady: () => true,
+      canWriteOnChain: () => false,
     } as never);
+
+    const payload = {
+      sourceId: "bank-statement",
+      payloadHash: "abc123",
+      payload: { dscr: 0.82, cashBalance: 120000, scenario: "breach" },
+    };
+
+    const first = await agent.processEvidence({
+      facilityId: DEMO_FACILITY_IDS.breach,
+      data: { ...payload, payloadHash: "abc123-1" },
+      paymentRef: "pay-1",
+    });
+    expect(first?.status).toBe("breach");
+    if (first?.status === "breach") {
+      expect(first.action).toBeUndefined();
+    }
 
     const result = await agent.processEvidence({
       facilityId: DEMO_FACILITY_IDS.breach,
-      data: {
-        sourceId: "bank-statement",
-        payloadHash: "abc123",
-        payload: { dscr: 0.82, cashBalance: 120000, scenario: "breach" },
-      },
-      paymentRef: "pay-1",
+      data: { ...payload, payloadHash: "abc123-2" },
+      paymentRef: "pay-2",
     });
 
     expect(result?.status).toBe("breach");
@@ -94,17 +107,26 @@ describe("TreasuryAgent", () => {
     resetDemoStore();
     const covenant = new CovenantAgent({
       recordEvidence: async () => "mock-receipt-tx",
-      proposeAction: async () => "mock-propose-tx",
+      proposeAction: async () => ({ txHash: "mock-propose-tx", actionId: "42" }),
       executeVaultAction: async () => "vault-tx",
       isReady: () => true,
+      canWriteOnChain: () => false,
     } as never);
 
     await covenant.processEvidence({
       facilityId: DEMO_FACILITY_IDS.breach,
       data: {
         sourceId: "bank-statement",
-        payloadHash: "breach-hash",
+        payloadHash: "breach-hash-1",
         payload: { dscr: 0.82 },
+      },
+    });
+    await covenant.processEvidence({
+      facilityId: DEMO_FACILITY_IDS.breach,
+      data: {
+        sourceId: "bank-statement",
+        payloadHash: "breach-hash-2",
+        payload: { dscr: 0.81 },
       },
     });
 
@@ -118,6 +140,7 @@ describe("TreasuryAgent", () => {
     const treasury = new TreasuryAgent({
       executeVaultAction: async () => "vault-tx-hash",
       isReady: () => true,
+      canWriteOnChain: () => false,
     } as never);
 
     const execution = await treasury.execute(hold!.id);

@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/covenant/empty-state";
 import { HashBlock } from "@/components/covenant/hash-block";
 import { PageHeader } from "@/components/covenant/page-header";
 import { TxLink } from "@/components/covenant/tx-link";
+import { signPolicyApproval } from "@/lib/casper/approval-signature";
 import { useClickWallet } from "@/lib/casper/click-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ import {
 } from "@/lib/api-client";
 
 export default function ApprovalsPage() {
-  const { publicKey } = useClickWallet();
+  const { publicKey, clickRef } = useClickWallet();
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -36,12 +37,16 @@ export default function ApprovalsPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (action: ProposedAction) => {
+    mutationFn: async (action: ProposedAction) => {
       if (!publicKey) throw new Error("Connect wallet first");
-      const mockTx = `deploy-approve-${action.id.slice(-6)}abcdef1234567890abcdef1234567890ab`;
+      if (!clickRef) throw new Error("CSPR.click is not ready");
+
+      const signature = await signPolicyApproval(clickRef, action, publicKey);
+      const approvalRef = `eip712-${signature.slice(0, 16)}${action.id.slice(-8)}`;
+
       return approveAction(action.id, {
         approver: publicKey,
-        txHash: mockTx,
+        txHash: approvalRef,
       });
     },
     onSuccess: (res) => {

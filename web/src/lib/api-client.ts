@@ -122,6 +122,12 @@ export async function registerFacility(body: {
   });
 }
 
+export async function registerCovenant(
+  id: string,
+): Promise<{ covenant: CovenantRecord; txHash: string; registryHash?: string }> {
+  return api(`/covenants/${id}/register`, { method: "POST" });
+}
+
 export async function updateCovenant(
   id: string,
   body: Partial<CovenantRecord>,

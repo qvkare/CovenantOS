@@ -7,6 +7,7 @@ import { registerActionRoutes } from "./routes/actions.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerChainRoutes } from "./routes/chain.js";
 import { registerEvidenceRoutes } from "./routes/evidence.js";
+import { registerCovenantRoutes } from "./routes/covenants.js";
 import { registerDemoRoutes } from "./routes/demo.js";
 import type { ChainIndexer } from "./indexer/index.js";
 import { LOG_REDACT_PATHS } from "./security/sanitize-log.js";
@@ -36,6 +37,7 @@ export async function buildServer(options: BuildServerOptions = {}) {
   await registerEventRoutes(app);
   await registerChainRoutes(app);
   await registerEvidenceRoutes(app);
+  await registerCovenantRoutes(app);
   await registerDemoRoutes(app);
 
   return app;

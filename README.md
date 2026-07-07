@@ -5,6 +5,11 @@
   </p>
 </div>
 
+
+
+
+
+
 **CovenantOS** ingests facility agreements, extracts covenants, collects third-party evidence through x402 micropayments, evaluates compliance, and routes policy actions through on-chain multisig before treasury execution.
 
 ## Architecture

@@ -307,4 +307,20 @@ mod tests {
             },
         );
     }
+
+    #[test]
+    fn pause_blocks_propose_action() {
+        let env = odra_test::env();
+        let owner = env.get_account(0);
+        let signer = env.get_account(1);
+        let mut contract = PolicyGuard::deploy(&env, PolicyGuardInitArgs { owner });
+
+        env.set_caller(owner);
+        contract.set_signer_weight(signer, 1);
+        contract.pause();
+
+        env.set_caller(signer);
+        let result = contract.try_propose_action(1, ACTION_HOLD, "hash-paused".to_string());
+        assert!(result.is_err());
+    }
 }

@@ -28,9 +28,10 @@ describe("CovenantAgent adversarial", () => {
     resetDemoStore();
     const agent = new CovenantAgent({
       recordEvidence: async () => "tx",
-      proposeAction: async () => "tx",
+      proposeAction: async () => ({ txHash: "tx", actionId: "1" }),
       executeVaultAction: async () => undefined,
       isReady: () => true,
+      canWriteOnChain: () => false,
     } as never);
 
     await agent.processEvidence({

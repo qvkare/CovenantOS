@@ -334,6 +334,23 @@ export class DemoStore {
     return this.actions.find((a) => a.id === id);
   }
 
+  setActionChainIds(
+    id: string,
+    chainIds: { onchainActionId?: string; proposeTxHash?: string },
+  ): ProposedAction | null {
+    const action = this.actions.find((a) => a.id === id);
+    if (!action) return null;
+
+    if (chainIds.onchainActionId) {
+      action.onchainActionId = chainIds.onchainActionId;
+    }
+    if (chainIds.proposeTxHash) {
+      action.proposeTxHash = chainIds.proposeTxHash;
+    }
+    action.updatedAt = this.now();
+    return action;
+  }
+
   recordEvidence(
     facilityId: string,
     input: {
@@ -704,7 +721,7 @@ export class DemoStore {
       `deploy-exec-${id.slice(-6)}abcdef1234567890abcdef1234567890ab`;
 
     action.status = "executed";
-    action.onchainActionId = executionTx;
+    action.executionTxHash = executionTx;
     action.updatedAt = now;
     this.applyExecutedAction(action, executionTx);
 

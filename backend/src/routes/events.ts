@@ -5,6 +5,22 @@ import { queryChainEvents } from "../db/index.js";
 
 const SSE_CLIENTS = new Set<FastifyReply>();
 
+const ALLOWED_SSE_ORIGINS = new Set([
+  "https://covenantos.xyz",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+]);
+
+function sseCorsHeaders(origin: string | undefined): Record<string, string> {
+  if (origin && ALLOWED_SSE_ORIGINS.has(origin)) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      Vary: "Origin",
+    };
+  }
+  return {};
+}
+
 function broadcast(event: ChainEvent) {
   const payload = `data: ${JSON.stringify(event)}\n\n`;
   for (const client of SSE_CLIENTS) {
@@ -31,11 +47,22 @@ export async function registerEventRoutes(app: FastifyInstance) {
     return reply.send({ events });
   });
 
+  app.options("/events/stream", async (request, reply) => {
+    const origin = request.headers.origin;
+    return reply
+      .headers(sseCorsHeaders(origin))
+      .header("Access-Control-Allow-Methods", "GET, OPTIONS")
+      .header("Access-Control-Allow-Headers", "Content-Type")
+      .status(204)
+      .send();
+  });
+
   app.get("/events/stream", async (request: FastifyRequest, reply: FastifyReply) => {
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      ...sseCorsHeaders(request.headers.origin),
     });
 
     SSE_CLIENTS.add(reply);

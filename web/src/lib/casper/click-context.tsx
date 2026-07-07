@@ -1,6 +1,10 @@
 "use client";
 
-import type { AccountType, ICSPRClickSDK } from "@make-software/csprclick-core-types";
+import type {
+  AccountType,
+  ICSPRClickSDK,
+} from "@make-software/csprclick-core-types";
+import type { ClickUIOptions } from "@make-software/csprclick-core-types/clickui";
 import {
   createContext,
   useCallback,
@@ -40,6 +44,16 @@ export function ClickProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Both globals must exist before the CDN script executes (see CSPR.click docs).
+    window.clickUIOptions = {
+      uiContainer: "csprclick-ui",
+      rootAppElement: "body",
+      showTopBar: false,
+      show1ClickModal: true,
+      defaultTheme: "dark",
+      accountMenuItems: ["AccountCardMenuItem", "CopyHashMenuItem"],
+    } satisfies ClickUIOptions;
+
     window.clickSDKOptions = {
       appName: "CovenantOS",
       appId: APP_ID,

@@ -25,6 +25,11 @@ export const metadata: Metadata = {
   },
   description:
     "Tokenized private credit covenant monitoring, x402 evidence, and policy-driven escrow on Casper Network.",
+  icons: {
+    icon: [{ url: "/covenantos-wordmark.png", type: "image/png" }],
+    shortcut: "/covenantos-wordmark.png",
+    apple: "/covenantos-wordmark.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -44,6 +49,7 @@ export default function RootLayout({
         <a href="#main" className="skip-link">
           Skip to main content
         </a>
+        <div id="csprclick-ui" />
         <Providers>{children}</Providers>
       </body>
     </html>

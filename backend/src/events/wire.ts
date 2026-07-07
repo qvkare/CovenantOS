@@ -1,4 +1,4 @@
-import { getDemoStore } from "@covenantos/shared";
+import { getAppStore } from "../store/persisting-store.js";
 import type { ChainEvent } from "@covenantos/shared";
 import { eventBus } from "./bus.js";
 import { persistChainEvent } from "../db/index.js";
@@ -22,7 +22,7 @@ export function wireEventPersistence(): void {
 }
 
 export function wireDemoStoreEvents(): void {
-  getDemoStore().subscribe((event) => {
+  getAppStore().subscribe((event) => {
     eventBus.publish({
       ...event,
       payload: { ...event.payload, source: "local" },

@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useClickWallet } from "@/lib/casper/click-context";
 import {
   extractCovenants,
+  registerCovenant,
   registerFacility,
   updateCovenant,
 } from "@/lib/api-client";
@@ -89,11 +90,19 @@ function NewFacilityWizard() {
       if (lowConfidence) {
         throw new Error("Review and verify low-confidence covenants before registering");
       }
-      return registerFacility({
+      const res = await registerFacility({
         name: facilityName || "Untitled facility",
         issuer: publicKey ?? "01unknown",
         covenants,
       });
+
+      const covenantTxs: string[] = [];
+      for (const covenant of covenants) {
+        const registered = await registerCovenant(`${res.facility.id}-${covenant.id}`);
+        covenantTxs.push(registered.txHash);
+      }
+
+      return { ...res, txHashes: [...res.txHashes, ...covenantTxs] };
     },
     onSuccess: (res) => {
       setTxHashes(res.txHashes);

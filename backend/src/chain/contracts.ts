@@ -6,6 +6,10 @@ import { loadTestnetConfig } from "./config.js";
 
 export type ContractKey = keyof TestnetConfig["contracts"];
 
+export function normalizePackageHash(hash: string): string {
+  return hash.startsWith("hash-") ? hash.slice(5) : hash;
+}
+
 export class ContractRegistry {
   constructor(private readonly config: TestnetConfig) {}
 
