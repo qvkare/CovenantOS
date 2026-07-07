@@ -7,9 +7,8 @@ export function MarketingFooter() {
     <footer className="relative z-10 border-t border-white/10 bg-white/[0.03] px-6 py-20 text-sm backdrop-blur-sm">
       <div className="mx-auto flex max-w-7xl flex-col justify-between gap-16 lg:flex-row">
         <div className="space-y-6 lg:w-1/3">
-          <div className="flex items-center gap-3">
-            <CovenantLogo size={36} />
-            <span className="text-lg font-bold tracking-tight">CovenantOS</span>
+          <div className="flex items-center">
+            <CovenantLogo height={26} />
           </div>
           <p className="font-light leading-relaxed text-white/40">
             Agentic covenant monitoring and cashflow waterfall OS for tokenized

@@ -80,7 +80,7 @@ export default function AuditTrailPage() {
       <PageHeader
         eyebrow="Audit"
         title="Decision trail"
-        description="Reconstruct every policy outcome from evidence hashes through approvals to on-chain execution — without exposing PII."
+        description="Reconstruct every policy outcome from evidence hashes through approvals to on-chain execution, without exposing PII."
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" asChild>

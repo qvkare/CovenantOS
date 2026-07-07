@@ -1,8 +1,12 @@
-# CovenantOS
+<div align="center">
+  <img src="web/public/covenantos-wordmark.png" alt="CovenantOS" width="360" />
+  <h1>CovenantOS</h1>
+  <p>
+    <strong><a href="https://covenantos.xyz">covenantos.xyz</a></strong> · agentic covenant monitoring and escrow orchestration for tokenized private credit and receivable-based assets on Casper Network.
+  </p>
+</div>
 
-Agentic covenant monitoring and escrow orchestration for tokenized private credit and receivable-based assets on [Casper Network](https://www.casper.network/).
-
-CovenantOS ingests facility agreements, extracts covenants, collects third-party evidence through x402 micropayments, evaluates compliance, and routes policy actions through on-chain multisig before treasury execution.
+**CovenantOS** ingests facility agreements, extracts covenants, collects third-party evidence through x402 micropayments, evaluates compliance, and routes policy actions through on-chain multisig before treasury execution.
 
 ## Architecture
 

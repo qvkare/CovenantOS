@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "CovenantOS — Agentic Covenant Monitoring on Casper",
+    default: "CovenantOS · Agentic Covenant Monitoring on Casper",
     template: "%s · CovenantOS",
   },
   description:

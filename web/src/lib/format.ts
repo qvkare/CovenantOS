@@ -25,7 +25,7 @@ export function formatMotes(
 
 export function formatTimestamp(ts: string | number | Date): string {
   const date = ts instanceof Date ? ts : new Date(ts);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",

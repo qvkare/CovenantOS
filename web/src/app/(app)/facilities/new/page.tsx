@@ -138,7 +138,7 @@ function NewFacilityWizard() {
           <CardHeader>
             <CardTitle>Upload facility document</CardTitle>
             <CardDescription>
-              PDF or CSV — Document Agent extracts covenant types, thresholds,
+              PDF or CSV. Document Agent extracts covenant types, thresholds,
               and source quotes.
             </CardDescription>
           </CardHeader>

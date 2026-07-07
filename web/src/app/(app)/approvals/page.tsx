@@ -71,7 +71,7 @@ export default function ApprovalsPage() {
       <PageHeader
         eyebrow="Compliance · Approvals"
         title="Policy approval queue"
-        description="AI agents propose holds and releases — officers sign with CSPR.click before PolicyGuard moves funds."
+        description="AI agents propose holds and releases. Officers sign with CSPR.click before PolicyGuard moves funds."
         action={
           <Button variant="destructive" size="sm" disabled title="Demo kill-switch">
             Pause facility

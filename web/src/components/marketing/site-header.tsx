@@ -38,9 +38,8 @@ export function MarketingHeader() {
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-6">
         <div className="flex items-center gap-3">
           <MobileNav />
-          <Link href="/" className="flex items-center gap-3">
-            <CovenantLogo size={40} />
-            <span className="text-xl font-semibold tracking-tight">CovenantOS</span>
+          <Link href="/" className="flex items-center">
+            <CovenantLogo height={24} />
           </Link>
         </div>
 
@@ -86,9 +85,8 @@ function MobileNav() {
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 md:hidden" />
         <DialogPrimitive.Content className="fixed inset-y-0 left-0 z-50 w-72 border-r border-white/10 bg-[#0a0a0a] p-4 md:hidden">
           <div className="mb-6 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-              <CovenantLogo size={32} />
-              <span className="font-semibold">CovenantOS</span>
+            <Link href="/" className="flex items-center" onClick={() => setOpen(false)}>
+              <CovenantLogo height={22} />
             </Link>
             <DialogPrimitive.Close asChild>
               <Button variant="ghost" size="icon" aria-label="Close">

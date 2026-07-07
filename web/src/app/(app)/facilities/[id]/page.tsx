@@ -45,10 +45,10 @@ export default function FacilityDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ["facilities"] });
       void queryClient.invalidateQueries({ queryKey: ["actions"] });
       if (res.status === "breach") {
-        toast.success("Breach detected — hold proposed for approval");
+        toast.success("Breach detected, hold proposed for approval");
         setBannerDismissed(false);
       } else if (res.status === "release_pending") {
-        toast.success("Remediation check passed — release proposed");
+        toast.success("Remediation check passed, release proposed");
       } else {
         toast.success("Covenant check complete");
       }

@@ -72,11 +72,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <MobileNav pathname={pathname} />
-            <Link href="/dashboard" className="flex items-center gap-3">
-              <CovenantLogo size={40} />
-              <span className="text-xl font-semibold tracking-tight">
-                CovenantOS
-              </span>
+            <Link href="/dashboard" className="flex items-center">
+              <CovenantLogo height={24} />
             </Link>
           </div>
 
@@ -212,13 +209,10 @@ function MobileNav({ pathname }: { pathname: string | null }) {
           <div className="mb-6 flex items-center justify-between">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2"
+              className="flex items-center"
               onClick={() => setOpen(false)}
             >
-              <CovenantLogo size={32} />
-              <span className="text-base font-semibold tracking-tight">
-                CovenantOS
-              </span>
+              <CovenantLogo height={22} />
             </Link>
             <DialogPrimitive.Close asChild>
               <Button variant="ghost" size="icon" aria-label="Close navigation">
