@@ -20,6 +20,7 @@ jobs:
       - run: npm run lint -w @covenantos/shared
       - run: npm run lint -w @covenantos/backend
       - run: npm run lint -w @covenantos/provider
+      - run: npm run typecheck -w @covenantos/web
       - run: npm run test -w @covenantos/backend
 
   contracts:
@@ -35,3 +36,9 @@ jobs:
       - name: Run Odra tests
         working-directory: contracts
         run: cargo odra test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build

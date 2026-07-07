@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { EvidenceProviderResponse, X402PaymentRecord } from "@covenantos/shared";
-import { defaultAgentPolicy } from "../policy/runtime-policy.js";
+import {
+  assertCounterpartyAllowed,
+  assertSpendWithinLimit,
+  assertToolAllowed,
+} from "../policy/enforce-policy.js";
 import { X402PaymentClient } from "./client.js";
 import { loadX402Env, type X402Env } from "./config.js";
 
@@ -38,18 +42,11 @@ export class X402Gateway {
     scenario: "healthy" | "breach" = "healthy",
     facilityId?: string,
   ): Promise<EvidenceFetchResult> {
-    if (!defaultAgentPolicy.allowedCounterparties.includes("covenantos-provider")) {
-      throw new Error("Provider is not on the runtime allowlist");
-    }
-
-    if (!defaultAgentPolicy.allowedTools.includes("x402:bank-statement")) {
-      throw new Error("Bank statement tool is not allowed by runtime policy");
-    }
+    assertCounterpartyAllowed("covenantos-provider");
+    assertToolAllowed("x402:bank-statement");
 
     const amount = this.env.X402_PAYMENT_AMOUNT_MOTES;
-    if (amount > defaultAgentPolicy.maxSpendMotes) {
-      throw new Error("Payment exceeds agent max spend policy");
-    }
+    assertSpendWithinLimit(amount);
 
     if (amount > this.budgetRemaining) {
       throw new Error("x402 budget cap exceeded for this facility run");

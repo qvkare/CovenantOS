@@ -3,12 +3,15 @@ import {
   bankPayloadFromEvidence,
   evaluateCovenants,
   getDemoStore,
+  type CovenantEvaluation,
   type CovenantCheckResult,
 } from "@covenantos/shared";
 import type { ChainWriter } from "../../chain/writer.js";
 import { ChainWriter as DefaultChainWriter } from "../../chain/writer.js";
+import { validateEvidencePayload } from "../../security/evidence-guard.js";
 import type { EvidenceFetchResult } from "../../x402/gateway.js";
 
+/** Require at least one recorded evidence item before proposing hold (human approval follows). */
 export const MIN_EVIDENCE_FOR_PROPOSE = 1;
 
 export type ProcessEvidenceInput = {
@@ -27,6 +30,15 @@ export class CovenantAgent {
     if (!facility) return null;
 
     const rawPayload = input.data.payload;
+
+    const guard = validateEvidencePayload(rawPayload);
+    if (!guard.ok) {
+      return {
+        status: "ok",
+        evaluation: { status: "ok", breaches: [] } satisfies CovenantEvaluation,
+      };
+    }
+
     const receiptTx =
       input.onchainReceiptTx ??
       (await this.chainWriter.recordEvidence(input.data.payloadHash, input.facilityId));

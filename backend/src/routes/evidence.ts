@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
+import { ZodError } from "zod";
 import { getDemoStore } from "@covenantos/shared";
 import { CovenantAgent } from "../agents/covenant-agent.js";
 import { X402Gateway } from "../x402/index.js";
+import { evidenceBodySchema, parseBody } from "./schemas.js";
 
 let gateway: X402Gateway | undefined;
 let covenantAgent: CovenantAgent | undefined;
@@ -36,7 +38,20 @@ export async function registerEvidenceRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: "Facility not found" });
     }
 
-    const body = (request.body ?? {}) as { scenario?: "healthy" | "breach" };
+    const body = (() => {
+      try {
+        return parseBody(evidenceBodySchema, request.body);
+      } catch (error) {
+        if (error instanceof ZodError) {
+          reply.status(400).send({ error: "Invalid request body", details: error.flatten() });
+          return null;
+        }
+        throw error;
+      }
+    })();
+
+    if (!body) return;
+
     const scenario = body.scenario ?? "healthy";
 
     try {

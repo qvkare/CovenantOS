@@ -1,9 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
+import { ZodError } from "zod";
 import { DEMO_FACILITY_IDS, getDemoStore } from "@covenantos/shared";
 import { DocumentAgent } from "../agents/document-agent.js";
 import { CovenantAgent } from "../agents/covenant-agent.js";
 import { X402Gateway } from "../x402/index.js";
+import { checkBodySchema, parseBody, registerFacilitySchema } from "./schemas.js";
 
 const documentAgent = new DocumentAgent();
 const covenantAgent = new CovenantAgent();
@@ -75,10 +77,16 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
 
   app.post("/facilities/:id/check", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as {
-      fetchEvidence?: boolean;
-      scenario?: "healthy" | "breach";
-    };
+
+    let body;
+    try {
+      body = parseBody(checkBodySchema, request.body);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return reply.status(400).send({ error: "Invalid request body", details: error.flatten() });
+      }
+      throw error;
+    }
 
     const facility = getDemoStore().getFacility(id);
     if (!facility) {
@@ -108,18 +116,20 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
   app.post("/facilities/extract", extractFromUpload);
 
   app.post("/facilities", async (request, reply) => {
-    const body = request.body as {
-      name: string;
-      issuer: string;
-      covenants: unknown[];
-    };
-    if (!body?.name || !body?.issuer || !Array.isArray(body.covenants)) {
-      return reply.status(400).send({ error: "Invalid facility payload" });
+    let body;
+    try {
+      body = parseBody(registerFacilitySchema, request.body);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return reply.status(400).send({ error: "Invalid facility payload", details: error.flatten() });
+      }
+      throw error;
     }
+
     const result = getDemoStore().registerFacility({
       name: body.name,
       issuer: body.issuer,
-      covenants: body.covenants as Parameters<
+      covenants: body.covenants as unknown as Parameters<
         ReturnType<typeof getDemoStore>["registerFacility"]
       >[0]["covenants"],
     });

@@ -1,8 +1,17 @@
 import type { FastifyInstance } from "fastify";
+import { ZodError } from "zod";
 import { getDemoStore } from "@covenantos/shared";
 import { TreasuryAgent } from "../agents/treasury-agent.js";
+import { approveActionSchema, parseBody } from "./schemas.js";
 
 const treasuryAgent = new TreasuryAgent();
+
+function validationError(error: unknown) {
+  if (error instanceof ZodError) {
+    return { statusCode: 400, body: { error: "Invalid request body", details: error.flatten() } };
+  }
+  return null;
+}
 
 export async function registerActionRoutes(app: FastifyInstance) {
   app.get("/actions", async (request, reply) => {
@@ -13,9 +22,14 @@ export async function registerActionRoutes(app: FastifyInstance) {
 
   app.post("/actions/:id/approve", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { approver: string; txHash?: string };
-    if (!body?.approver) {
-      return reply.status(400).send({ error: "approver is required" });
+
+    let body;
+    try {
+      body = parseBody(approveActionSchema, request.body);
+    } catch (error) {
+      const invalid = validationError(error);
+      if (invalid) return reply.status(invalid.statusCode).send(invalid.body);
+      throw error;
     }
 
     const action = getDemoStore().approveAction(id, body);

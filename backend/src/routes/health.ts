@@ -8,7 +8,7 @@ export async function registerHealthRoutes(app: FastifyInstance) {
     return {
       status: "ok",
       service: "covenantos-backend",
-      phase: 7,
+      phase: 8,
       database: isDatabaseEnabled(),
       indexer: indexer ?? { enabled: false, mode: "local-only", connected: false },
       events: {
