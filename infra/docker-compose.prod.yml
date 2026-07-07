@@ -28,7 +28,7 @@ services:
       PORT: 3002
       CASPER_NODE_URL: https://node.testnet.casper.network/rpc
       X402_PAYEE_ACCOUNT_HASH: ${X402_PAYEE_ACCOUNT_HASH}
-      X402_PAYMENT_AMOUNT_MOTES: "1000000"
+      X402_PAYMENT_AMOUNT_MOTES: ${X402_PAYMENT_AMOUNT_MOTES:-2500000000}
 
   backend:
     build:

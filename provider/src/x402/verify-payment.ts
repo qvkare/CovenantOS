@@ -19,13 +19,12 @@ export type PaymentVerificationInput = {
   nodeUrl: string;
 };
 
-function transactionSucceeded(result: TransactionResult): boolean {
+function transactionErrorMessage(result: TransactionResult): string | null {
   const raw = result.rawJSON as {
     execution_info?: { execution_result?: { Version2?: { error_message?: string | null } } };
   };
 
-  const errorMessage = raw.execution_info?.execution_result?.Version2?.error_message;
-  return errorMessage == null;
+  return raw?.execution_info?.execution_result?.Version2?.error_message ?? null;
 }
 
 function extractTransferAmount(result: TransactionResult): bigint | null {
@@ -76,8 +75,9 @@ export async function verifyX402Payment(input: PaymentVerificationInput): Promis
   const rpc = new RpcClient(new HttpHandler(input.nodeUrl));
   const result = await rpc.getTransactionByTransactionHash(parsed.transactionHash);
 
-  if (!transactionSucceeded(result)) {
-    throw new Error("Payment transaction did not succeed on Casper testnet");
+  const execError = transactionErrorMessage(result);
+  if (execError) {
+    throw new Error(`Payment transaction failed on Casper testnet: ${execError}`);
   }
 
   const observedAmount = extractTransferAmount(result);

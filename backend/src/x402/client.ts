@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { EvidenceProviderResponse, X402PaymentRecord } from "@covenantos/shared";
-import { formatPaymentHeader, parsePaymentHeader, toPaymentAddress } from "@covenantos/shared";
+import { formatPaymentHeader, normalizeAccountHash, parsePaymentHeader } from "@covenantos/shared";
 import {
   AccountHash,
   HttpHandler,
@@ -97,7 +97,18 @@ export class X402PaymentClient {
     amountMotes: bigint,
   ): Promise<string> {
     const sender = this.privateKey.publicKey;
-    const target = AccountHash.fromString(toPaymentAddress(payeeAccountHash));
+    const targetHash = normalizeAccountHash(payeeAccountHash);
+    const senderHash = normalizeAccountHash(sender.accountHash().toHex());
+
+    if (senderHash === targetHash) {
+      throw new Error(
+        `x402 payee account (${targetHash}) is the same as the paying account. ` +
+          "Casper rejects self-transfers with \"Invalid purse\" — set X402_PAYEE_ACCOUNT_HASH " +
+          "to a provider account different from the signing/deployer account.",
+      );
+    }
+
+    const target = AccountHash.fromString(targetHash);
 
     const transaction = new NativeTransferBuilder()
       .from(sender)
