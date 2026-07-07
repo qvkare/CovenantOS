@@ -1,0 +1,14 @@
+[
+  {
+    "type": "DSCR",
+    "threshold": 1.25,
+    "cadence": "monthly",
+    "sourceQuote": "Debt Service Coverage Ratio of not less than 1.25 to 1.00"
+  },
+  {
+    "type": "AGING",
+    "threshold": 45,
+    "cadence": "weekly",
+    "sourceQuote": "forty-five (45) days"
+  }
+]

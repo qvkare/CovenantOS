@@ -1,2 +1,1 @@
-// Phase 4: Document Agent — PDF/CSV → Claude covenant extraction
-export {};
+export { DocumentAgent, HUMAN_REVIEW_CONFIDENCE_THRESHOLD } from "./document/index.js";

@@ -8,7 +8,7 @@ CovenantOS reads facility documents, extracts covenants, collects evidence via p
 
 Early development — built for the [Casper Agentic Buildathon 2026](https://dorahacks.io/hackathon/casper-agentic-buildathon/detail).
 
-**Current phase:** testnet deploy complete + chain service (Phase 3)
+**Current phase:** Document Agent complete — x402 gateway next (Phase 5)
 
 ## Monorepo
 
@@ -63,7 +63,7 @@ Backend chain status: `GET http://localhost:3001/chain/status`
 1. Monorepo scaffold + docker-compose + CI ✓
 2. Odra contract trio + tests ✓
 3. Testnet deploy + chain service ✓
-4. Document Agent + golden-file tests
+4. Document Agent + golden-file tests ✓
 5. x402 gateway + mock provider pipeline
 6. Covenant + Treasury agents + approval flow
 7. Indexer + SSE

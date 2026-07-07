@@ -1,6 +1,31 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
 import { getDemoStore } from "@covenantos/shared";
+import { DocumentAgent } from "../agents/document-agent.js";
+
+const documentAgent = new DocumentAgent();
+
+async function extractFromUpload(request: FastifyRequest, reply: FastifyReply) {
+  const file = await request.file();
+  if (!file) {
+    return reply.status(400).send({ error: "Missing file upload" });
+  }
+
+  const buffer = await file.toBuffer();
+
+  try {
+    const result = await documentAgent.extractFromUpload(buffer, file.filename);
+    return reply.send({
+      documentId: result.documentId,
+      covenants: result.covenants,
+      provider: result.provider,
+      warnings: result.warnings,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Extraction failed";
+    return reply.status(422).send({ error: message });
+  }
+}
 
 export async function registerFacilityRoutes(app: FastifyInstance) {
   await app.register(multipart);
@@ -46,11 +71,7 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
-  app.post("/facilities/extract", async (_request, reply) => {
-    // Document Agent stub — returns golden-file covenants after simulated work.
-    await new Promise((r) => setTimeout(r, 300));
-    return reply.send(getDemoStore().extractCovenants());
-  });
+  app.post("/facilities/extract", extractFromUpload);
 
   app.post("/facilities", async (request, reply) => {
     const body = request.body as {
@@ -81,8 +102,5 @@ export async function registerFacilityRoutes(app: FastifyInstance) {
     return reply.send({ covenant: updated });
   });
 
-  // Legacy path from backend-plan — forwards to extract stub.
-  app.post("/facilities/:id/documents", async (_request, reply) => {
-    return reply.send(getDemoStore().extractCovenants());
-  });
+  app.post("/facilities/:id/documents", extractFromUpload);
 }

@@ -1,0 +1,15 @@
+CREDIT AND SECURITY AGREEMENT
+Northwind Invoice Facility — Term Loan
+
+Section 4.1 — Financial Covenants; Debt Service Coverage.
+The Borrower shall maintain a Debt Service Coverage Ratio of not less than 1.25 to 1.00,
+calculated on a trailing twelve-month basis and tested monthly as of each fiscal month end.
+
+Section 5.3 — Portfolio Quality; Receivables Aging.
+Receivables aged in excess of forty-five (45) days shall not exceed fifteen percent (15%)
+of the aggregate outstanding receivables in the pool. The Servicer shall deliver an aging
+report weekly for each test date.
+
+Section 6.2 — Liquidity Reserve.
+Borrower shall maintain a liquidity reserve equal to at least ten percent (10%) of the
+outstanding principal balance, reviewed monthly.
