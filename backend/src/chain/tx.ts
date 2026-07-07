@@ -48,7 +48,39 @@ export function parseProposedActionId(result: CasperWaitResult): string | undefi
   return match?.[1];
 }
 
-/** Read PolicyGuard next_action_id increment from execution effects (action_id = next - 1). */
+const ACTION_PROPOSED_EVENT_MARKER = Buffer.from("event_ActionProposed", "utf8");
+
+function readU64Le(bytes: Buffer, offset: number): bigint | undefined {
+  if (offset + 8 > bytes.length) return undefined;
+  let value = 0n;
+  for (let i = 0; i < 8; i += 1) {
+    value |= BigInt(bytes[offset + i] ?? 0) << BigInt(i * 8);
+  }
+  return value;
+}
+
+/** Parse action_id from Odra ActionProposed event bytes in execution effects. */
+export function parseActionIdFromProposedEventBytes(bytes: Buffer): string | undefined {
+  const markerIndex = bytes.indexOf(ACTION_PROPOSED_EVENT_MARKER);
+  if (markerIndex < 0) return undefined;
+
+  const actionIdOffset = markerIndex + ACTION_PROPOSED_EVENT_MARKER.length;
+  const actionId = readU64Le(bytes, actionIdOffset);
+  if (actionId === undefined || actionId === 0n) return undefined;
+
+  return String(actionId);
+}
+
+function clValueBytes(cl: { bytes?: string } | undefined): Buffer | undefined {
+  if (!cl?.bytes) return undefined;
+  try {
+    return Buffer.from(cl.bytes, "hex");
+  } catch {
+    return undefined;
+  }
+}
+
+/** Read PolicyGuard action_id from ActionProposed event effects. */
 export function parseProposedActionIdFromEffects(result: CasperWaitResult): string | undefined {
   const raw = result.rawJSON;
   if (!raw) return undefined;
@@ -63,12 +95,11 @@ export function parseProposedActionIdFromEffects(result: CasperWaitResult): stri
 
     const write = "Write" in kind ? kind.Write : undefined;
     const cl = write?.CLValue ?? write;
-    if (!cl || (cl.cl_type !== "U32" && cl.cl_type !== "U64")) continue;
+    const bytes = clValueBytes(cl);
+    if (!bytes) continue;
 
-    const nextId = BigInt(String(cl.parsed ?? "0"));
-    if (nextId > 1n) {
-      return String(nextId - 1n);
-    }
+    const actionId = parseActionIdFromProposedEventBytes(bytes);
+    if (actionId) return actionId;
   }
 
   return undefined;

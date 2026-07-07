@@ -4,16 +4,16 @@
   "csprCloudUrl": "https://api.testnet.cspr.cloud",
   "contracts": {
     "policyGuard": {
-      "packageHash": "hash-1c8d95efb3ee992910193a1cfbb5d168d13b1d92603a77f69c6555c9ab8fffa2",
-      "contractHash": "hash-1c8d95efb3ee992910193a1cfbb5d168d13b1d92603a77f69c6555c9ab8fffa2"
+      "packageHash": "hash-fda86049e3e3bc3f08ef1e2d6b98319aa2e220b2f2958f8b38b6ea277135f5ae",
+      "contractHash": "hash-fda86049e3e3bc3f08ef1e2d6b98319aa2e220b2f2958f8b38b6ea277135f5ae"
     },
     "evidenceReceipt": {
-      "packageHash": "hash-8a42c4ae5401958ea19c5262bc81f9bfc171e3a6361aa4668f85eb8a615266c9",
-      "contractHash": "hash-8a42c4ae5401958ea19c5262bc81f9bfc171e3a6361aa4668f85eb8a615266c9"
+      "packageHash": "hash-0e09a3dbbfc5e2f2d39dc2e7320a503cea736e73e04bc66051c5077020c4bcbe",
+      "contractHash": "hash-0e09a3dbbfc5e2f2d39dc2e7320a503cea736e73e04bc66051c5077020c4bcbe"
     },
     "facilityVault": {
-      "packageHash": "hash-ffe4bbfd8d1777649403c448ac46583cfd0ca70b836ebe885a87caa5a66d6910",
-      "contractHash": "hash-ffe4bbfd8d1777649403c448ac46583cfd0ca70b836ebe885a87caa5a66d6910"
+      "packageHash": "hash-e856dd1a38e748f17b7c8a1152b52979efa46024f11f692125b71b2853117576",
+      "contractHash": "hash-e856dd1a38e748f17b7c8a1152b52979efa46024f11f692125b71b2853117576"
     }
   }
 }
