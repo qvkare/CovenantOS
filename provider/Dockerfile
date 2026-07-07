@@ -6,7 +6,6 @@ COPY provider/package.json ./provider/
 RUN npm install --workspace @covenantos/shared --workspace @covenantos/provider
 COPY shared ./shared
 COPY provider ./provider
-COPY tsconfig.json ./
 RUN npm run build -w @covenantos/shared && npm run build -w @covenantos/provider
 
 FROM node:22-alpine

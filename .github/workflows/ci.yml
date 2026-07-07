@@ -39,6 +39,8 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    env:
+      X402_PAYEE_ACCOUNT_HASH: "533109d2891f6c3a293be1bc88ad38965301dd8211b455e7850d1fc2268bce83"
     steps:
       - uses: actions/checkout@v4
       - run: docker compose build

@@ -1,69 +1,68 @@
 # CovenantOS
 
-Agentic covenant monitoring and cashflow waterfall OS for tokenized private credit and receivable-based RWAs on [Casper Network](https://www.casper.network/).
+Agentic covenant monitoring and escrow orchestration for tokenized private credit and receivable-based assets on [Casper Network](https://www.casper.network/).
 
-CovenantOS reads facility documents, extracts covenants, collects evidence via paid data providers (x402), detects breaches, and enforces escrow and payment flows on-chain through policy-driven smart contracts.
-
-## Status
-
-Built for the [Casper Agentic Buildathon 2026](https://dorahacks.io/hackathon/casper-agentic-buildathon/detail).
-
-**Current phase:** Security hardening + demo polish (Phase 8)
+CovenantOS ingests facility agreements, extracts covenants, collects third-party evidence through x402 micropayments, evaluates compliance, and routes policy actions through on-chain multisig before treasury execution.
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-  subgraph ingest [Ingest]
-    Doc[Document Agent]
-    X402[x402 Gateway]
-    Prov[Data Provider]
+flowchart TB
+  subgraph clients [Clients]
+    UI[Web dashboard]
   end
 
-  subgraph orchestrator [Backend]
+  subgraph platform [CovenantOS platform]
+    API[Backend API]
+    Doc[Document Agent]
     Cov[Covenant Agent]
     Tre[Treasury Agent]
-    Bus[Event Bus]
-    Idx[Chain Indexer]
+    X402[x402 Gateway]
+    Bus[Event bus]
+    Idx[Chain indexer]
     DB[(Postgres)]
   end
 
-  subgraph chain [Casper Testnet]
+  subgraph external [External services]
+    Prov[Evidence provider]
+    Cloud[CSPR.cloud streaming]
+  end
+
+  subgraph casper [Casper testnet]
     PG[PolicyGuard]
     ER[EvidenceReceipt]
     FV[FacilityVault]
   end
 
-  subgraph ui [Web Dashboard]
-    Dash[Next.js UI]
-    SSE[SSE Client]
-  end
-
-  Doc --> Cov
-  X402 --> Prov
-  Prov --> X402
-  X402 --> Cov
+  UI -->|REST / SSE| API
+  API --> Doc
+  API --> Cov
+  API --> Tre
+  API --> X402
+  X402 <-->|402 payment + data| Prov
   Cov --> PG
   Tre --> FV
   PG --> FV
+  Cloud --> Idx
   Idx --> Bus
   Cov --> Bus
   Tre --> Bus
   Bus --> DB
-  Bus --> SSE
-  SSE --> Dash
-  Idx -. CSPR.cloud WS .-> chain
+  Bus -->|SSE| UI
+  ER -. evidence receipts .- PG
 ```
 
-## Monorepo
+**Control flow.** Officers and agents interact with the backend API. The Document Agent extracts covenants from uploaded agreements. The x402 gateway pays the evidence provider for bank or ERP payloads; the Covenant Agent evaluates that evidence against registered covenants and proposes holds or releases through PolicyGuard. After multisig approval, the Treasury Agent executes vault operations. Local and on-chain events are persisted and streamed to the dashboard.
 
-| Package | Description |
+## Repository
+
+| Package | Role |
 |---|---|
-| `contracts/` | Rust + Odra smart contracts (PolicyGuard, EvidenceReceipt, FacilityVault) |
-| `backend/` | Node.js + Fastify orchestrator and agents |
-| `provider/` | x402 data provider — paid bank/ERP evidence API with on-chain payment verification |
-| `shared/` | Shared TypeScript types and testnet config |
-| `web/` | Next.js dashboard |
+| `contracts/` | Odra smart contracts — PolicyGuard, EvidenceReceipt, FacilityVault |
+| `backend/` | Fastify orchestrator, agents, x402 gateway, indexer |
+| `provider/` | x402 evidence API with on-chain payment verification |
+| `shared/` | Shared types and testnet contract registry |
+| `web/` | Next.js operations dashboard |
 
 ## Quick start
 
@@ -71,12 +70,12 @@ flowchart LR
 cp .env.example .env
 npm install
 npm run build -w @covenantos/shared
-npm run dev          # backend on :3001
-npm run dev:provider  # x402 data provider on :3002
-npm run dev -w @covenantos/web   # dashboard on :3000
+npm run dev              # backend :3001
+npm run dev:provider     # provider :3002
+npm run dev -w @covenantos/web   # dashboard :3000
 ```
 
-With Docker:
+Docker:
 
 ```bash
 docker compose up --build
@@ -86,89 +85,79 @@ Reset demo fixtures:
 
 ```bash
 npm run demo:reset -w backend
-# or: curl -X POST http://localhost:3001/demo/reset
 ```
 
-## Demo walkthrough
+## Testnet deployments
 
-1. **Start stack** — `docker compose up --build` or local dev servers above.
-2. **Open dashboard** — http://localhost:3000 — two seed facilities:
-   - `fac-demo-001` Northwind (healthy)
-   - `fac-demo-002` Atlas Receivables (breach demo)
-3. **Trigger breach check** on Atlas:
+Deployed on **Casper testnet** (`casper-test`). Explorer links are updated as new deploys and transactions are confirmed.
+
+| Resource | Identifier | Explorer |
+|---|---|---|
+| Deployer account | `533109d2891f6c3a293be1bc88ad38965301dd8211b455e7850d1fc2268bce83` | [View account](https://testnet.cspr.live/account/533109d2891f6c3a293be1bc88ad38965301dd8211b455e7850d1fc2268bce83) |
+| PolicyGuard | `hash-1c8d95efb3ee992910193a1cfbb5d168d13b1d92603a77f69c6555c9ab8fffa2` | [View package](https://testnet.cspr.live/contract-package-wasm/1c8d95efb3ee992910193a1cfbb5d168d13b1d92603a77f69c6555c9ab8fffa2) |
+| EvidenceReceipt | `hash-8a42c4ae5401958ea19c5262bc81f9bfc171e3a6361aa4668f85eb8a615266c9` | [View package](https://testnet.cspr.live/contract-package-wasm/8a42c4ae5401958ea19c5262bc81f9bfc171e3a6361aa4668f85eb8a615266c9) |
+| FacilityVault | `hash-ffe4bbfd8d1777649403c448ac46583cfd0ca70b836ebe885a87caa5a66d6910` | [View package](https://testnet.cspr.live/contract-package-wasm/ffe4bbfd8d1777649403c448ac46583cfd0ca70b836ebe885a87caa5a66d6910) |
+
+> Transaction hashes for evidence recording, policy actions, and vault operations will be linked here as they are executed on testnet.
+
+## Operations guide
+
+1. Start the stack (`docker compose up --build` or local dev commands above).
+2. Open the dashboard at http://localhost:3000.
+3. Run a covenant check on a facility:
    ```bash
    curl -X POST http://localhost:3001/facilities/fac-demo-002/check \
      -H 'Content-Type: application/json' \
      -d '{"scenario":"breach"}'
    ```
-4. **Approve hold** — open Approvals in the UI or:
-   ```bash
-   curl -X POST http://localhost:3001/actions/<action-id>/approve \
-     -H 'Content-Type: application/json' \
-     -d '{"approver":"officer-1"}'
-   ```
-5. **Watch live events** — `GET /events/stream` (SSE) or the activity feed on the facility page.
-6. **Optional** — upload a facility agreement via `POST /facilities/extract` (requires `ANTHROPIC_API_KEY`).
+4. Approve the proposed hold from the Approvals view or via `POST /actions/:id/approve`.
+5. Monitor live activity on `GET /events/stream` or the facility activity feed.
 
-## Chain / testnet
+Document extraction: `POST /facilities/extract` (multipart upload; requires `ANTHROPIC_API_KEY`).
 
-Put your deployer secret in `keys/deployer_secret_key.pem` (or set `CASPER_SECRET_KEY_HEX` in `.env`; never commit secrets).
+## Deploying contracts
+
+Store the deployer key in `keys/deployer_secret_key.pem` or set `CASPER_SECRET_KEY_HEX` in `.env` (never commit secrets).
 
 ```bash
-npm run chain:wallet -w backend   # balance check
-```
-
-Deploy contracts after the wallet is funded on testnet. Requires `binaryen` and `wabt` (`brew install binaryen wabt`) for Odra WASM optimization.
-
-```bash
+npm run chain:wallet -w backend
 cd contracts
 env -u CARGO_TARGET_DIR cargo odra build
 set -a && source ../.env && set +a
 env -u CARGO_TARGET_DIR cargo run --bin covenantos_contracts_cli -- deploy --deploy-mode default
-npm run chain:sync-deploy -w backend   # writes addresses to shared/config/testnet.json
+npm run chain:sync-deploy -w backend
 ```
 
-`CSPR_CLOUD_AUTH_TOKEN` from [console.cspr.build](https://console.cspr.build) enables live contract-event indexing over WebSocket.
+Requires `binaryen` and `wabt` for Odra WASM builds. Set `CSPR_CLOUD_AUTH_TOKEN` to enable live contract-event indexing.
 
-## API summary
+## API
 
-| Endpoint | Description |
-|---|---|
-| `GET /health` | Service, DB, and indexer status |
-| `GET /chain/status` | Testnet wallet and deployed contracts |
-| `POST /facilities/extract` | Document Agent — covenant extraction |
-| `POST /facilities/:id/check` | x402 fetch + covenant evaluation |
-| `POST /facilities/:id/evidence` | Fetch and record bank statement evidence |
-| `GET /actions` | Pending and executed policy actions |
-| `POST /actions/:id/approve` | Officer approval → treasury execute |
-| `GET /events/stream` | SSE live event feed |
-| `GET /events` | Historical events from Postgres |
-| `POST /demo/reset` | Reset in-memory demo state |
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | Service health, database, indexer |
+| GET | `/chain/status` | Wallet balance and contract registry |
+| POST | `/facilities/extract` | Extract covenants from a document |
+| POST | `/facilities/:id/check` | Fetch evidence and evaluate covenants |
+| POST | `/facilities/:id/evidence` | Record x402 bank-statement evidence |
+| GET | `/actions` | List proposed and executed actions |
+| POST | `/actions/:id/approve` | Officer approval; treasury executes when threshold is met |
+| GET | `/events/stream` | Server-sent events feed |
+| GET | `/events` | Historical events from Postgres |
+| POST | `/demo/reset` | Reset in-memory demo state |
 
-## Security
+## Security model
 
-- **Runtime policy** — tool allowlist, counterparty allowlist, spend caps on x402 and treasury top-ups
+- **Runtime policy** — tool allowlist, counterparty allowlist, and spend caps on x402 and treasury operations
 - **Evidence guard** — adversarial payload filtering before covenant evaluation
-- **Evidence-before-action** — hold actions require linked evidence; officer multisig before execution
-- **Log redaction** — secrets, payment headers, and raw evidence payloads redacted in logs
-
-## Implementation phases
-
-1. Monorepo scaffold + docker-compose + CI ✓
-2. Odra contract trio + tests ✓
-3. Testnet deploy + chain service ✓
-4. Document Agent + golden-file tests ✓
-5. x402 gateway + data provider ✓
-6. Covenant + Treasury agents + approval flow ✓
-7. Indexer + SSE ✓
-8. Security hardening, seed demo, README polish ✓
+- **Evidence before action** — hold proposals require linked evidence; execution requires multisig approval
+- **Log redaction** — secrets, payment headers, and raw evidence payloads are redacted in logs
 
 ## Stack
 
-- **Smart contracts:** Rust + [Odra](https://odra.dev/)
-- **Backend:** Node.js + TypeScript (Fastify)
-- **Frontend:** Next.js
-- **Chain:** Casper Testnet, casper-js-sdk, CSPR.cloud
+- Smart contracts: Rust, [Odra](https://odra.dev/)
+- Backend: Node.js, TypeScript, Fastify
+- Frontend: Next.js
+- Chain: Casper testnet, casper-js-sdk, CSPR.cloud
 
 ## License
 
