@@ -16,7 +16,7 @@ import {
 import {
   applyClickGlobals,
   CSPRCLICK_SCRIPT_URL,
-} from "./click-config.js";
+} from "./click-config";
 
 interface ClickContextState {
   ready: boolean;
