@@ -4,16 +4,16 @@
   "csprCloudUrl": "https://api.testnet.cspr.cloud",
   "contracts": {
     "policyGuard": {
-      "packageHash": "",
-      "contractHash": ""
+      "packageHash": "hash-1c8d95efb3ee992910193a1cfbb5d168d13b1d92603a77f69c6555c9ab8fffa2",
+      "contractHash": "hash-1c8d95efb3ee992910193a1cfbb5d168d13b1d92603a77f69c6555c9ab8fffa2"
     },
     "evidenceReceipt": {
-      "packageHash": "",
-      "contractHash": ""
+      "packageHash": "hash-8a42c4ae5401958ea19c5262bc81f9bfc171e3a6361aa4668f85eb8a615266c9",
+      "contractHash": "hash-8a42c4ae5401958ea19c5262bc81f9bfc171e3a6361aa4668f85eb8a615266c9"
     },
     "facilityVault": {
-      "packageHash": "",
-      "contractHash": ""
+      "packageHash": "hash-ffe4bbfd8d1777649403c448ac46583cfd0ca70b836ebe885a87caa5a66d6910",
+      "contractHash": "hash-ffe4bbfd8d1777649403c448ac46583cfd0ca70b836ebe885a87caa5a66d6910"
     }
   }
 }
