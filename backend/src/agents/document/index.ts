@@ -28,10 +28,16 @@ function toCovenantRecords(
 
 function resolveProvider(): CovenantExtractionProvider {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  if (apiKey) {
-    return new ClaudeExtractionProvider(apiKey);
+  if (!apiKey) {
+    if (process.env.NODE_ENV === "test") {
+      return new HeuristicExtractionProvider();
+    }
+    throw new Error("ANTHROPIC_API_KEY is required for document extraction");
   }
-  return new HeuristicExtractionProvider();
+
+  const model =
+    process.env.ANTHROPIC_MODEL?.trim() ?? "claude-3-5-haiku-20241022";
+  return new ClaudeExtractionProvider(apiKey, model);
 }
 
 export class DocumentAgent {

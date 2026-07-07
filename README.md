@@ -8,7 +8,7 @@ CovenantOS reads facility documents, extracts covenants, collects evidence via p
 
 Early development — built for the [Casper Agentic Buildathon 2026](https://dorahacks.io/hackathon/casper-agentic-buildathon/detail).
 
-**Current phase:** Document Agent complete — x402 gateway next (Phase 5)
+**Current phase:** x402 gateway + data provider (Phase 5)
 
 ## Monorepo
 
@@ -16,7 +16,7 @@ Early development — built for the [Casper Agentic Buildathon 2026](https://dor
 |---|---|
 | `contracts/` | Rust + Odra smart contracts |
 | `backend/` | Node.js + Fastify orchestrator and agents |
-| `mock-provider/` | x402-compatible mock bank/ERP data provider |
+| `provider/` | x402 data provider — paid bank/ERP evidence API with on-chain payment verification |
 | `shared/` | Shared TypeScript types and testnet config |
 | `web/` | Next.js dashboard (frontend phase) |
 
@@ -27,7 +27,7 @@ cp .env.example .env
 npm install
 npm run build -w @covenantos/shared
 npm run dev          # backend on :3001
-npm run dev:mock     # mock x402 provider on :3002
+npm run dev:provider  # x402 data provider on :3002
 ```
 
 With Docker:
@@ -58,13 +58,17 @@ npm run chain:sync-deploy -w backend   # writes addresses to shared/config/testn
 
 Backend chain status: `GET http://localhost:3001/chain/status`
 
+Document extraction: `POST /facilities/extract` (multipart file upload). Requires `ANTHROPIC_API_KEY`; uses `ANTHROPIC_MODEL` (default `claude-3-5-haiku-20241022`).
+
+x402 evidence: `POST /facilities/:id/evidence` — pays the data provider with a real testnet CSPR transfer, verified on-chain before data is returned.
+
 ## Implementation phases
 
 1. Monorepo scaffold + docker-compose + CI ✓
 2. Odra contract trio + tests ✓
 3. Testnet deploy + chain service ✓
 4. Document Agent + golden-file tests ✓
-5. x402 gateway + mock provider pipeline
+5. x402 gateway + data provider (in progress)
 6. Covenant + Treasury agents + approval flow
 7. Indexer + SSE
 8. Security hardening, seed demo, README polish

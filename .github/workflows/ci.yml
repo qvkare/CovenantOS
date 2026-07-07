@@ -19,7 +19,7 @@ jobs:
       - run: npm run build -w @covenantos/shared
       - run: npm run lint -w @covenantos/shared
       - run: npm run lint -w @covenantos/backend
-      - run: npm run lint -w @covenantos/mock-provider
+      - run: npm run lint -w @covenantos/provider
       - run: npm run test -w @covenantos/backend
 
   contracts:

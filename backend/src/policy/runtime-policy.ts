@@ -7,7 +7,7 @@ export interface AgentRuntimePolicy {
 
 export const defaultAgentPolicy: AgentRuntimePolicy = {
   maxSpendMotes: 10_000_000_000n, // 10 CSPR in motes
-  allowedTools: ["x402:mock-bank-statement"],
-  allowedCounterparties: ["mock-provider"],
+  allowedTools: ["x402:bank-statement"],
+  allowedCounterparties: ["covenantos-provider"],
   escalationRequired: true,
 };

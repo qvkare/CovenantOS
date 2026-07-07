@@ -1,2 +1,1 @@
-// Phase 5: x402 gateway — provider allowlist, budget caps, evidence pipeline
-export {};
+export { X402Gateway, X402PaymentClient, loadX402Env } from "./gateway.js";

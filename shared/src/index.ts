@@ -4,5 +4,6 @@ export * from "./types/facility.js";
 export * from "./types/evidence.js";
 export * from "./types/events.js";
 export * from "./types/x402.js";
+export * from "./x402/payment-header.js";
 export * from "./types/api.js";
 export * from "./demo/store.js";

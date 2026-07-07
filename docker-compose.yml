@@ -24,22 +24,25 @@ services:
     environment:
       PORT: 3001
       DATABASE_URL: postgres://covenantos:covenantos@postgres:5432/covenantos
-      MOCK_PROVIDER_URL: http://mock-provider:3002
+      PROVIDER_URL: http://provider:3002
+      CASPER_NODE_URL: https://node.testnet.casper.network/rpc
+      CASPER_CHAIN_NAME: casper-test
     depends_on:
       postgres:
         condition: service_healthy
-      mock-provider:
+      provider:
         condition: service_started
 
-  mock-provider:
+  provider:
     build:
       context: .
-      dockerfile: mock-provider/Dockerfile
+      dockerfile: provider/Dockerfile
     ports:
       - "3002:3002"
     environment:
       PORT: 3002
-      X402_PAYMENT_ADDRESS: 01mockprovider000000000000000000000000000000
+      CASPER_NODE_URL: https://node.testnet.casper.network/rpc
+      X402_PAYEE_ACCOUNT_HASH: ${X402_PAYEE_ACCOUNT_HASH}
       X402_PAYMENT_AMOUNT_MOTES: "1000000"
 
   web:

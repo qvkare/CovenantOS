@@ -1,29 +1,40 @@
 import type { FastifyInstance } from "fastify";
 import { createHash } from "node:crypto";
+import {
+  paymentRequiredHeaders,
+  resolveExpectedPayeeAccountHash,
+  verifyX402Payment,
+} from "../x402/verify-payment.js";
 
-const PAYMENT_ADDRESS = process.env.X402_PAYMENT_ADDRESS ?? "01mockprovider000000000000000000000000000000";
-const PAYMENT_AMOUNT = process.env.X402_PAYMENT_AMOUNT_MOTES ?? "1000000";
+const PAYMENT_AMOUNT = BigInt(process.env.X402_PAYMENT_AMOUNT_MOTES ?? "1000000");
+const NODE_URL = process.env.CASPER_NODE_URL ?? "https://node.testnet.casper.network/rpc";
 
 export async function registerBankStatementRoute(app: FastifyInstance) {
+  const payeeAccountHash = resolveExpectedPayeeAccountHash(process.env);
+
   app.get("/api/v1/bank-statement", async (request, reply) => {
     const paymentHeader = request.headers["x-payment"];
 
     if (!paymentHeader || typeof paymentHeader !== "string") {
       return reply
         .status(402)
-        .headers({
-          "X-Payment-Address": PAYMENT_ADDRESS,
-          "X-Payment-Amount": PAYMENT_AMOUNT,
-          "X-Payment-Network": "casper",
-        })
+        .headers(paymentRequiredHeaders(payeeAccountHash, PAYMENT_AMOUNT))
         .send({
           error: "payment_required",
           message: "x402 payment required for bank statement access",
         });
     }
 
-    if (!paymentHeader.startsWith("casper:")) {
-      return reply.status(400).send({ error: "invalid_payment_header" });
+    try {
+      await verifyX402Payment({
+        paymentHeader,
+        expectedPayeeAccountHash: payeeAccountHash,
+        expectedAmountMotes: PAYMENT_AMOUNT,
+        nodeUrl: NODE_URL,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "invalid_payment";
+      return reply.status(402).send({ error: "payment_verification_failed", message });
     }
 
     const query = request.query as { scenario?: string };
@@ -31,13 +42,13 @@ export async function registerBankStatementRoute(app: FastifyInstance) {
     const payload =
       scenario === "breach"
         ? {
-            sourceId: "mock-bank-statement",
+            sourceId: "bank-statement",
             dscr: 0.82,
             cashBalance: 120000,
             asOf: new Date().toISOString(),
           }
         : {
-            sourceId: "mock-bank-statement",
+            sourceId: "bank-statement",
             dscr: 1.45,
             cashBalance: 540000,
             asOf: new Date().toISOString(),

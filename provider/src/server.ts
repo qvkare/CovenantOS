@@ -10,14 +10,14 @@ async function main() {
 
   app.get("/health", async () => ({
     status: "ok",
-    service: "covenantos-mock-provider",
-    phase: 1,
+    service: "covenantos-provider",
+    protocol: "x402",
   }));
 
   await registerBankStatementRoute(app);
 
   await app.listen({ port, host });
-  app.log.info(`Mock x402 provider listening on http://${host}:${port}`);
+  app.log.info(`x402 data provider listening on http://${host}:${port}`);
 }
 
 main().catch((error) => {

@@ -5,6 +5,7 @@ import { registerFacilityRoutes } from "./routes/facilities.js";
 import { registerActionRoutes } from "./routes/actions.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerChainRoutes } from "./routes/chain.js";
+import { registerEvidenceRoutes } from "./routes/evidence.js";
 
 export async function buildServer() {
   const app = Fastify({
@@ -18,6 +19,7 @@ export async function buildServer() {
   await registerActionRoutes(app);
   await registerEventRoutes(app);
   await registerChainRoutes(app);
+  await registerEvidenceRoutes(app);
 
   return app;
 }
