@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { KeyAlgorithm, PrivateKey } from "casper-js-sdk";
+import { KeyAlgorithm, PrivateKey, type CasperPrivateKey } from "./casper-sdk.js";
 
-function loadPrivateKeyFromPem(pemContents: string): PrivateKey {
+function loadPrivateKeyFromPem(pemContents: string): CasperPrivateKey {
   for (const algorithm of [KeyAlgorithm.ED25519, KeyAlgorithm.SECP256K1]) {
     try {
       return PrivateKey.fromPem(pemContents, algorithm);
@@ -25,7 +25,7 @@ function resolvePemPath(configuredPath?: string): string | undefined {
   return path.resolve(root, configuredPath);
 }
 
-export function loadPrivateKeyFromEnv(env: NodeJS.ProcessEnv = process.env): PrivateKey {
+export function loadPrivateKeyFromEnv(env: NodeJS.ProcessEnv = process.env): CasperPrivateKey {
   const secretHex = env.CASPER_SECRET_KEY_HEX?.trim();
   if (secretHex) {
     return PrivateKey.fromHex(secretHex, KeyAlgorithm.ED25519);

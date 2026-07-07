@@ -1,13 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { EvidenceProviderResponse, X402PaymentRecord } from "@covenantos/shared";
+import { formatPaymentHeader, parsePaymentHeader, toPaymentAddress } from "@covenantos/shared";
 import {
   AccountHash,
   HttpHandler,
   NativeTransferBuilder,
   RpcClient,
   Timestamp,
-} from "casper-js-sdk";
-import { formatPaymentHeader, parsePaymentHeader, toPaymentAddress } from "@covenantos/shared";
+} from "../chain/casper-sdk.js";
 import { loadPrivateKeyFromEnv } from "../chain/signer.js";
 import type { X402Env } from "./config.js";
 
@@ -18,7 +18,7 @@ export type PaidFetchResult = {
 };
 
 export class X402PaymentClient {
-  private readonly rpc: RpcClient;
+  private readonly rpc: InstanceType<typeof RpcClient>;
   private readonly privateKey = loadPrivateKeyFromEnv();
 
   constructor(private readonly env: X402Env) {

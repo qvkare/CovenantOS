@@ -1,0 +1,43 @@
+{
+	email ops@covenantos.xyz
+}
+
+# CovenantOS production reverse proxy.
+#
+# Origin TLS: self-signed via `tls internal` so Cloudflare Full mode can connect
+# immediately (525 fix). Cloudflare SSL/TLS must be "Full", not "Full (strict)".
+#
+# For Let's Encrypt via Cloudflare DNS-01, replace `tls internal` with:
+#   tls { dns cloudflare {env.CF_API_TOKEN} }
+# and ensure CF_API_TOKEN has Edit zone DNS on covenantos.xyz.
+
+covenantos.xyz {
+	encode zstd gzip
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+	}
+
+	tls internal
+
+	reverse_proxy 127.0.0.1:3000
+}
+
+api.covenantos.xyz {
+	encode zstd gzip
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	tls internal
+
+	reverse_proxy 127.0.0.1:3001 {
+		flush_interval -1
+	}
+}

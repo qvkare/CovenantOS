@@ -1,0 +1,76 @@
+# CovenantOS production stack — loopback ports for host Caddy TLS termination.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: covenantos
+      POSTGRES_PASSWORD: covenantos
+      POSTGRES_DB: covenantos
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U covenantos -d covenantos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  provider:
+    build:
+      context: ..
+      dockerfile: provider/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:3002"
+    environment:
+      PORT: 3002
+      CASPER_NODE_URL: https://node.testnet.casper.network/rpc
+      X402_PAYEE_ACCOUNT_HASH: ${X402_PAYEE_ACCOUNT_HASH}
+      X402_PAYMENT_AMOUNT_MOTES: "1000000"
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://covenantos:covenantos@postgres:5432/covenantos
+      PROVIDER_URL: http://provider:3002
+      CASPER_NODE_URL: https://node.testnet.casper.network/rpc
+      CASPER_CHAIN_NAME: casper-test
+      CSPR_CLOUD_AUTH_TOKEN: ${CSPR_CLOUD_AUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
+      DEMO_MODE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      provider:
+        condition: service_started
+
+  web:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.covenantos.xyz
+        NEXT_PUBLIC_MSW: "false"
+        NEXT_PUBLIC_CSPRCLICK_APP_ID: csprclick-template
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: https://api.covenantos.xyz
+      NEXT_PUBLIC_MSW: "false"
+      NEXT_PUBLIC_CSPRCLICK_APP_ID: csprclick-template
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

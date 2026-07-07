@@ -7,7 +7,9 @@ import {
   PrivateKey,
   PurseIdentifier,
   RpcClient,
-} from "casper-js-sdk";
+  type CasperPrivateKey,
+  type CasperRpcClient,
+} from "./casper-sdk.js";
 import type { ChainEnv } from "./config.js";
 
 export type ChainWalletInfo = {
@@ -17,7 +19,7 @@ export type ChainWalletInfo = {
   balanceCspr: number;
 };
 
-function loadPrivateKeyFromPem(pemContents: string): PrivateKey {
+function loadPrivateKeyFromPem(pemContents: string): CasperPrivateKey {
   for (const algorithm of [KeyAlgorithm.ED25519, KeyAlgorithm.SECP256K1]) {
     try {
       return PrivateKey.fromPem(pemContents, algorithm);
@@ -39,7 +41,7 @@ function resolvePemPath(env: ChainEnv): string | undefined {
   return path.resolve(root, env.CASPER_SECRET_KEY_PATH);
 }
 
-function loadPrivateKey(env: ChainEnv): PrivateKey | undefined {
+function loadPrivateKey(env: ChainEnv): CasperPrivateKey | undefined {
   if (env.CASPER_SECRET_KEY_HEX) {
     return PrivateKey.fromHex(env.CASPER_SECRET_KEY_HEX, KeyAlgorithm.ED25519);
   }
@@ -53,11 +55,11 @@ function loadPrivateKey(env: ChainEnv): PrivateKey | undefined {
 }
 
 export class CasperChainClient {
-  readonly rpc: RpcClient;
+  readonly rpc: CasperRpcClient;
   readonly chainName: string;
   readonly nodeUrl: string;
   readonly csprCloudUrl: string;
-  private readonly privateKey?: PrivateKey;
+  private readonly privateKey?: CasperPrivateKey;
 
   constructor(env: ChainEnv) {
     this.nodeUrl = env.CASPER_NODE_URL;

@@ -1,9 +1,16 @@
-import { HttpHandler, RpcClient } from "casper-js-sdk";
+import casperSdk from "casper-js-sdk";
 import {
   normalizeAccountHash,
   parsePaymentHeader,
   toPaymentAddress,
 } from "@covenantos/shared";
+
+const { HttpHandler, RpcClient } = casperSdk;
+
+type RpcClientInstance = InstanceType<typeof RpcClient>;
+type TransactionResult = Awaited<
+  ReturnType<RpcClientInstance["getTransactionByTransactionHash"]>
+>;
 
 export type PaymentVerificationInput = {
   paymentHeader: string;
@@ -12,9 +19,7 @@ export type PaymentVerificationInput = {
   nodeUrl: string;
 };
 
-function transactionSucceeded(
-  result: Awaited<ReturnType<RpcClient["getTransactionByTransactionHash"]>>,
-): boolean {
+function transactionSucceeded(result: TransactionResult): boolean {
   const raw = result.rawJSON as {
     execution_info?: { execution_result?: { Version2?: { error_message?: string | null } } };
   };
@@ -23,9 +28,7 @@ function transactionSucceeded(
   return errorMessage == null;
 }
 
-function extractTransferAmount(
-  result: Awaited<ReturnType<RpcClient["getTransactionByTransactionHash"]>>,
-): bigint | null {
+function extractTransferAmount(result: TransactionResult): bigint | null {
   const raw = result.rawJSON as {
     transaction?: {
       Version1?: {
