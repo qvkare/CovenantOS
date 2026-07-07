@@ -1,6 +1,5 @@
 <div align="center">
   <img src="web/public/covenantos-wordmark.png" alt="CovenantOS" width="360" />
-  <h1>CovenantOS</h1>
   <p>
     <strong><a href="https://covenantos.xyz">covenantos.xyz</a></strong> · agentic covenant monitoring and escrow orchestration for tokenized private credit and receivable-based assets on Casper Network.
   </p>
@@ -165,4 +164,3 @@ Requires `binaryen` and `wabt` for Odra WASM builds. Set `CSPR_CLOUD_AUTH_TOKEN`
 
 ## License
 
-TBD
